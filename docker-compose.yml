@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"    # HTTP 端口
+      - "8443:8443"    # HTTPS 端口
+      - "8444:8444"    # WSS 端口
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/multi_ai_agent
+      - MONGODB_DB=multi_ai_agent
+      - REDIS_URI=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - DEFAULT_AI_SERVICE=${DEFAULT_AI_SERVICE:-gemini}
+      - MAX_TOKENS=${MAX_TOKENS:-1024}
+      - ENABLE_ADVANCED_MODELS=${ENABLE_ADVANCED_MODELS:-false}
+      # SSL 配置
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-/app/ssl/cert.pem}
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-/app/ssl/key.pem}
+      - SSL_PROTOCOLS=${SSL_PROTOCOLS:-TLSv1.2 TLSv1.3}
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./ssl:/app/ssl    # 掛載 SSL 證書目錄
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - multi_ai_network
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=multi_ai_agent
+    restart: unless-stopped
+    command: mongod --wiredTigerCacheSizeGB 1.5
+    networks:
+      - multi_ai_network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - multi_ai_network
+
+networks:
+  multi_ai_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
