@@ -7,8 +7,21 @@ import logging
 import asyncio
 from typing import Dict, List, Optional, Any, Union, Callable, Awaitable
 import json
+from bson import ObjectId
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# 自定义JSON编码器，处理ObjectId和其他特殊类型
+class CustomJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles ObjectId and other special types."""
+    
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 class EventBus:
     """Event bus for system communication.
@@ -46,13 +59,23 @@ class EventBus:
             event_type: The type of event.
             event_data: The event data.
         """
+        # Convert objects like ObjectId to serializable form to avoid issues with JSON serialization
+        # First convert to JSON and back to create a clean deep copy with serializable types
+        try:
+            serialized_data = json.dumps(event_data, cls=CustomJSONEncoder)
+            clean_event_data = json.loads(serialized_data)
+        except Exception as e:
+            logger.error(f"Failed to serialize event data: {str(e)}")
+            # Fallback to the original data and hope for the best
+            clean_event_data = event_data
+            
         async with self._lock:
             # Add to history
             if event_type not in self._event_history:
                 self._event_history[event_type] = []
                 
             history = self._event_history[event_type]
-            history.append(event_data)
+            history.append(clean_event_data)
             
             # Trim history if too long
             if len(history) > self._max_history:
@@ -64,11 +87,11 @@ class EventBus:
         # Notify subscribers (outside the lock to prevent deadlocks)
         for subscriber in subscribers:
             try:
-                await subscriber(event_data)
+                await subscriber(clean_event_data)
             except Exception as e:
                 logger.error(f"Error in event subscriber for {event_type}: {str(e)}")
                 
-        logger.debug(f"Published event {event_type} with data: {json.dumps(event_data, default=str)[:200]}...")
+        logger.debug(f"Published event {event_type} with data: {serialized_data[:200]}...")
     
     def subscribe(self, event_type: str, callback: Callable[[Dict[str, Any]], Awaitable[None]]) -> None:
         """Subscribe to an event type.
@@ -156,4 +179,5 @@ class EventBus:
             event_type: The type of event.
             event_data: The event data.
         """
+        # Just pass through to publish
         await self.publish(event_type, event_data)

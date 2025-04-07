@@ -31,32 +31,45 @@ class KnowledgeExtractor:
         self.text_model = text_model
         self.embedding_model = embedding_model
         
+        # 确保模型已经被导入
+        try:
+            import src.ai.gemini
+            import src.ai.claude
+        except ImportError as e:
+            logger.warning(f"Failed to import AI models: {e}")
+        
         # Lazy initialize models if not provided
         if self.text_model is None:
             try:
-                self.text_model = get_text_generation_model()
-            except ValueError as e:
-                logger.warning(f"Failed to initialize text generation model: {str(e)}")
-                # Try to get a claude model instead
+                # 先初始化一个Gemini实例而不是使用工厂方法（避免可能的循环依赖）
+                from src.ai.gemini import GeminiAI
+                self.text_model = GeminiAI()
+                logger.info("Successfully initialized GeminiAI directly as text model")
+            except Exception as e:
+                logger.warning(f"Failed to initialize GeminiAI directly: {str(e)}")
+                # Try with Claude
                 try:
-                    self.text_model = get_text_generation_model("claude")
-                    logger.info("Successfully initialized Claude as a fallback text model")
+                    from src.ai.claude import ClaudeModel
+                    self.text_model = ClaudeModel()
+                    logger.info("Successfully initialized ClaudeModel directly as text model")
                 except Exception as e2:
-                    logger.warning(f"Failed to initialize Claude fallback model: {str(e2)}")
+                    logger.warning(f"Failed to initialize Claude directly: {str(e2)}")
                     self.text_model = None
             
         if self.embedding_model is None:
             try:
-                self.embedding_model = get_embedding_model()
-            except Exception as e:
-                logger.warning(f"Failed to initialize embedding model: {str(e)}")
-                # If no dedicated embedding model is available, use the text model if it supports embeddings
-                if self.text_model and isinstance(self.text_model, EmbeddingModel):
+                # 如果text_model是GeminiAI，可以直接用作embedding模型
+                if hasattr(self.text_model, 'generate_embedding'):
                     self.embedding_model = self.text_model
                     logger.info("Using text model for embeddings")
                 else:
-                    logger.warning("No embedding model available. Embeddings will not be generated.")
-                    self.embedding_model = None
+                    # 尝试直接创建嵌入模型
+                    from src.ai.gemini import GeminiAI
+                    self.embedding_model = GeminiAI()
+                    logger.info("Successfully initialized GeminiAI directly as embedding model")
+            except Exception as e:
+                logger.warning(f"Failed to initialize embedding model directly: {str(e)}")
+                self.embedding_model = None
     
     async def extract_knowledge(self, message: Dict[str, Any], 
                               context: Optional[List[Dict[str, Any]]] = None) -> KnowledgeExtractionResult:
@@ -94,9 +107,29 @@ class KnowledgeExtractor:
         # Extract knowledge
         try:
             logger.info(f"[{message_id}] Extracting knowledge from message")
-            extraction_result = await self._get_embedding(text)
-            entities = await self._extract_entities(text, context)
-            summary = await self._generate_summary(text, context)
+            
+            # Start the embedding generation asynchronously
+            embedding_task = asyncio.create_task(self._get_embedding(text))
+            
+            # Try to extract entities and summary in a single call to reduce API usage
+            try:
+                entities_and_summary = await self._extract_entities_and_summary(text, context)
+                entities = entities_and_summary.get("entities", [])
+                summary = entities_and_summary.get("summary", "")
+                
+                # If extraction failed, fall back to separate calls
+                if not entities or not summary:
+                    logger.warning("Combined entity and summary extraction failed, falling back to separate calls")
+                    entities = await self._extract_entities(text, context)
+                    summary = await self._generate_summary(text, context)
+            except Exception as e:
+                logger.warning(f"Combined extraction failed: {str(e)}, falling back to separate calls")
+                # Fall back to separate calls
+                entities = await self._extract_entities(text, context)
+                summary = await self._generate_summary(text, context)
+            
+            # Wait for embedding to complete
+            extraction_result = await embedding_task
             
             # Extract relationships based on the entities
             relationships = await self._extract_relationships(text, entities, context)
@@ -699,6 +732,88 @@ class KnowledgeExtractor:
         except Exception as e:
             logger.error(f"Failed to generate relationship extraction response: {str(e)}")
             return []
+    
+    async def _extract_entities_and_summary(self, text: str, context: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Extract entities and generate summary in a single call to reduce API usage.
+        
+        Args:
+            text: The text to extract from.
+            context: Optional conversation context.
+            
+        Returns:
+            Dictionary with entities and summary.
+        """
+        prompt = """
+        Analyze the following text and provide BOTH a concise summary AND key entity extractions.
+        
+        SUMMARY REQUIREMENTS:
+        - Length: Exactly 1-2 sentences, maximum 280 characters total
+        - Style: Clear, factual, and objective - avoid subjective language
+        - Focus: Capture the most important information, not peripheral details
+        - Language: Use present tense when possible
+        - Tone: Formal and neutral
+        
+        ENTITY EXTRACTION REQUIREMENTS:
+        - Each extraction must be between 2-50 characters
+        - Categorize each as: keyword, entity, concept, or question
+        - Maximum 15 extractions total
+        - Focus on substantive, meaningful terms
+        
+        Text to analyze:
+        """
+        
+        # Add context if provided
+        if context and len(context) > 0:
+            context_str = "\n\nConversation context:\n"
+            for msg in context[-3:]:  # Use last 3 messages as context
+                role = msg.get("role", "unknown")
+                content = msg.get("content", "")
+                context_str += f"{role}: {content}\n"
+            prompt += context_str
+        
+        prompt += f"\n\nText: {text}\n\n"
+        prompt += """
+        Provide the results in the following JSON format:
+        {
+            "summary": "Concise summary here",
+            "entities": [
+                {
+                    "text": "extracted text",
+                    "type": "keyword/entity/concept/question"
+                },
+                ...
+            ]
+        }
+        """
+        
+        try:
+            response = await self.text_model.generate_text(prompt)
+            
+            # Try to parse JSON from the response
+            try:
+                # Look for JSON content
+                if "```json" in response:
+                    json_str = response.split("```json")[1].split("```")[0].strip()
+                elif "```" in response:
+                    json_str = response.split("```")[1].strip()
+                else:
+                    json_str = response.strip()
+                
+                # Handle possible truncated or malformed JSON
+                if not json_str.strip().endswith('}'):
+                    logger.warning("JSON response appears truncated, attempting repair")
+                    json_str = json_str + "}}"  # Attempt to close any unclosed brackets
+                    
+                # Parse the JSON
+                result = json.loads(json_str)
+                return result
+            except Exception as e:
+                logger.error(f"Failed to parse combined extraction response: {str(e)}")
+                logger.debug(f"Response was: {response}")
+                raise
+        except Exception as e:
+            logger.error(f"Failed to generate combined extraction response: {str(e)}")
+            raise
     
     def _create_relationship_prompt(self, text: str, entities: List[Dict[str, Any]], 
                                  context: Optional[List[Dict[str, Any]]] = None) -> str:

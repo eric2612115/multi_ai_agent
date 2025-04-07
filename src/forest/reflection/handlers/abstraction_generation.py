@@ -6,13 +6,13 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 
-from forest.models import (
+from src.forest.models import (
     ReflectionTask, NodeStatus, AbstractionLevel, RelationshipType, AbstractionCluster
 )
-from forest.reflection.handlers.base import TaskHandler
-from common.exceptions import ExecutionError
-from common.decorators import handle_errors
-from common.config import get_settings
+from src.forest.reflection.handlers.base import TaskHandler
+from src.common.exceptions import ExecutionError
+from src.common.decorators import handle_errors
+from src.common.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class AbstractionGenerationHandler(TaskHandler):
         """Get the task type this handler supports."""
         return "abstraction_generation"
     
-    @handle_errors(error_type=ExecutionError)
+    @handle_errors(error_class=ExecutionError)
     async def handle(self, user_id: str, task: ReflectionTask) -> Dict[str, Any]:
         """Handle abstraction generation task."""
         result = {

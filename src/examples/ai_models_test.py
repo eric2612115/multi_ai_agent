@@ -14,14 +14,14 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Import the necessary modules
-from ai.factory import (
+from src.ai.factory import (
     get_text_generation_model,
     get_embedding_model,
     get_web_extraction_model,
     get_available_models
 )
 
-from common.config import get_settings
+from src.common.config import get_settings
 
 
 async def test_text_generation():

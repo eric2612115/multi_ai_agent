@@ -8,9 +8,9 @@ import asyncio
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 
-from common.auth import get_current_user, User
-from services.event_bus import EventBus
-from services.message_storage import MessageStorageService
+from src.common.auth import get_current_user, User
+from src.services.event_bus import EventBus
+from src.services.message_storage import MessageStorageService
 
 # Setup logging
 logger = logging.getLogger(__name__)

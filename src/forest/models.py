@@ -13,7 +13,7 @@ from pydantic_core import core_schema
 from bson import ObjectId
 
 # Import configuration settings
-from common.config import get_settings
+from src.common.config import get_settings
 settings = get_settings()
 EMBEDDING_DIM = settings.ai.embedding_dimensions
 
@@ -32,7 +32,7 @@ class StringId(str):
         _handler: Callable[[Any], core_schema.CoreSchema],
     ) -> core_schema.CoreSchema:
         """Define the core schema for validation and serialization."""
-        def validate_id(v: Any) -> str:
+        def validate_id(v: Any, info: core_schema.ValidationInfo) -> str:
             # Convert ObjectId to string if needed
             if isinstance(v, ObjectId):
                 return str(v)
@@ -55,10 +55,10 @@ class StringId(str):
             # Other types: attempt to convert to string
             return str(v)
 
-        return core_schema.with_info_plain_validator_function(
+        return core_schema.with_info_after_validator_function(
             validate_id,
+            core_schema.str_schema(),
             serialization=core_schema.plain_serializer_function_ser_schema(str),
-            json_schema_extra={"type": "string", "format": "id"}
         )
 
     @classmethod
@@ -82,7 +82,7 @@ class Message(BaseModel):
     model_config = {
         'populate_by_name': True,
         'arbitrary_types_allowed': True,
-        'json_encoders': {uuid.UUID: str}
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -100,7 +100,7 @@ class Conversation(BaseModel):
     model_config = {
         'populate_by_name': True,
         'arbitrary_types_allowed': True,
-        'json_encoders': {uuid.UUID: str}
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -112,7 +112,8 @@ class NodeVisualAttributes(BaseModel):
     icon: Optional[str] = None
 
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -168,7 +169,8 @@ class NodeMetadata(BaseModel):
     config: MetadataConfig = Field(default_factory=MetadataConfig)  # Configurable options
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -228,10 +230,10 @@ class Node(BaseModel):
     @computed_field
     def is_dormant_candidate(self) -> bool:
         """Determine if this node is a candidate for dormancy."""
-        min_age = timedelta(days=settings.knowledge_lifecycle.node_min_age_days)
+        min_age = timedelta(days=settings.lifecycle.node_min_age_days)
         return (
             self.status == NodeStatus.ACTIVE and
-            self.importance_score < settings.knowledge_lifecycle.node_dormancy_threshold and
+            self.importance_score < settings.lifecycle.node_dormancy_threshold and
             (datetime.utcnow() - self.created_at) > min_age and
             self.metadata.config.auto_prune and
             (self.metadata.config.protect_until is None or 
@@ -299,7 +301,7 @@ class Edge(BaseModel):
     model_config = {
         'populate_by_name': True,
         'arbitrary_types_allowed': True,
-        'json_encoders': {uuid.UUID: str}
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -315,8 +317,25 @@ class KnowledgeExtractionResult(BaseModel):
     text: str = Field(default="", description="Original text content")
 
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
+    
+    def is_valid(self) -> bool:
+        """Check if an extraction result is valid and useful.
+        
+        Returns:
+            True if valid, False otherwise.
+        """
+        # Check if embedding is present
+        if not self.embedding or len(self.embedding) == 0:
+            return False
+            
+        # Check if we have entities or a summary
+        if (not self.entities or len(self.entities) == 0) and not self.summary:
+            return False
+            
+        return True
 
 
 class PlacementAction(str, Enum):
@@ -325,6 +344,7 @@ class PlacementAction(str, Enum):
     CREATE_NEW = "create_new"            # Create a new root node
     CREATE_CHILD = "create_child"        # Create a child node
     UPDATE_EXISTING = "update_existing"  # Update an existing node
+    NO_ACTION = "no_action"              # No action needed (e.g., insufficient content)
 
 
 class PlacementStrategy(str, Enum):
@@ -333,6 +353,8 @@ class PlacementStrategy(str, Enum):
     NEW_TREE = "new_tree"     # Create a new knowledge tree
     EXTEND = "extend"         # Extend an existing node
     BRANCH = "branch"         # Create a branch from existing node
+    DUPLICATE = "duplicate"   # Update existing node with duplicate content
+    INSUFFICIENT_CONTENT = "insufficient_content"  # Not enough content to add to graph
     
 
 class PlacementDecision(BaseModel):
@@ -345,7 +367,8 @@ class PlacementDecision(BaseModel):
     target_topic_cluster_id: str  # Topic cluster to place in
 
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -360,7 +383,8 @@ class GraphUpdateResult(BaseModel):
     abstractions_created: List[str] = Field(default_factory=list, description="Abstraction nodes created")
 
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -372,7 +396,8 @@ class ProcessingResult(BaseModel):
     updates: GraphUpdateResult
 
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -409,7 +434,8 @@ class KnowledgeGap(BaseModel):
     status: str = Field(default="open")  # open, addressing, closed
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -424,7 +450,8 @@ class ReflectionTask(BaseModel):
     target_node_ids: List[StringId] = Field(default_factory=list)  # Nodes targeted by this task
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -445,7 +472,8 @@ class SystemStateSnapshot(BaseModel):
     health_indicators: Dict[str, float]  # Various health indicators
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -462,7 +490,8 @@ class AbstractionCluster(BaseModel):
     abstraction_level: AbstractionLevel
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -489,7 +518,8 @@ class ConceptSynthesisResult(BaseModel):
     creation_timestamp: datetime = Field(default_factory=datetime.utcnow)
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -511,7 +541,8 @@ class ReflectionCycle(BaseModel):
     error_message: Optional[str] = None
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -539,7 +570,8 @@ class StrategyAdjustment(BaseModel):
     reflection_cycle_id: Optional[StringId] = None
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -577,7 +609,8 @@ class MetricsRecord(BaseModel):
     health_score: float  # Overall health score (0-1)
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -596,7 +629,8 @@ class ExplorationQuery(BaseModel):
     result_summary: Optional[str] = None
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -614,7 +648,8 @@ class ExplorationResult(BaseModel):
     knowledge_extraction_result: Optional[KnowledgeExtractionResult] = None
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -629,7 +664,8 @@ class PerceptionEvent(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }
 
 
@@ -657,5 +693,6 @@ class LearningStrategy(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     model_config = {
-        'arbitrary_types_allowed': True
+        'arbitrary_types_allowed': True,
+        'json_encoders': {uuid.UUID: str, ObjectId: str}
     }

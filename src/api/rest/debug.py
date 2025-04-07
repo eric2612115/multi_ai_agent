@@ -3,7 +3,7 @@ Debug API endpoints for system health checks and diagnostics
 """
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
-from dependencies.mongodb import get_mongodb_provider
+from src.dependencies.mongodb import get_mongodb_provider
 
 router = APIRouter(
     prefix="/api/debug",

@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import uuid
 
-from forest.tasks import KnowledgeForestTaskHandler
-from forest.graph import KnowledgeGraphManager
-from forest.extraction_service import KnowledgeExtractionService
-from services.event_bus import EventBus
-from common.auth import get_current_user, User
+from src.forest.tasks import KnowledgeForestTaskHandler
+from src.forest.graph import KnowledgeGraphManager
+from src.forest.extraction_service import KnowledgeExtractionService
+from src.services.event_bus import EventBus
+from src.common.auth import get_current_user, User
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -181,7 +181,7 @@ async def get_knowledge_graph(
     """
     try:
         # Check if user has data, if not, initialize
-        from common.initialization import initialize_new_user
+        from src.common.initialization import initialize_new_user
         await initialize_new_user(user_id)
         
         # Get the graph

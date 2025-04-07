@@ -20,7 +20,7 @@ except ImportError:
     except ImportError:
         raise ImportError("Neither 'google-genai' nor 'google-generativeai' packages are installed")
 
-from ai.base_agent import LLMProvider
+from src.ai.base_agent import LLMProvider
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -32,6 +32,7 @@ class GeminiConnector(LLMProvider):
         "gemini-2.0-flash-thinking-exp-01-21": {
             "chat": True,
             "text": True,
+            "text_generation": True,
             "image_generation": False,
             "image_analysis": False,
             "thinking": True
@@ -39,15 +40,17 @@ class GeminiConnector(LLMProvider):
         "gemini-2.5-pro-exp-03-25": {
             "chat": True,
             "text": True,
+            "text_generation": True,
             "image_generation": False,
             "image_analysis": True,
             "thinking": True
         },
         "gemini-2.0-flash-exp-image-generation": {
-            "chat": True,
-            "text": True,
+            "chat": False,
+            "text": False,
+            "text_generation": False,
             "image_generation": True,
-            "image_analysis": True,
+            "image_analysis": False,
             "thinking": False
         }
     }
@@ -64,6 +67,7 @@ class GeminiConnector(LLMProvider):
         self.temperature = float(os.environ.get("GEMINI_TEMPERATURE", "0.7"))
         self.model = None
         self.client = None
+        self.supports_conversation_history = False  # Gemini doesn't support our conversation_history parameter
     
     def retry_with_exponential_backoff(self, func, max_retries=3, base_delay=1, max_delay=10):
         """Retry a function with exponential backoff.
@@ -133,7 +137,7 @@ class GeminiConnector(LLMProvider):
             self.is_initialized = False
             return False
     
-    def generate_response(self, message: str, conversation_history: List[Dict[str, str]] = None) -> str:
+    async def generate_response(self, message: str, conversation_history: List[Dict[str, str]] = None) -> str:
         """Generate a response using Gemini.
         
         Args:
@@ -190,7 +194,7 @@ class GeminiConnector(LLMProvider):
             logger.exception(f"Error generating response with Gemini: {e}")
             return f"Error generating response: {str(e)}"
     
-    def generate_text(self, prompt: str, system_prompt: str = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: str = None) -> str:
         """Generate text using a simple prompt.
         
         Args:
@@ -208,9 +212,9 @@ class GeminiConnector(LLMProvider):
             # Call generate_response, which handles both SDKs
             if system_prompt:
                 enhanced_prompt = f"{system_prompt}\n\n{prompt}"
-                return self.generate_response(enhanced_prompt)
+                return await self.generate_response(enhanced_prompt)
             else:
-                return self.generate_response(prompt)
+                return await self.generate_response(prompt)
             
         except Exception as e:
             logger.exception(f"Error generating text with Gemini: {e}")
@@ -225,6 +229,7 @@ class GeminiConnector(LLMProvider):
         return self.MODEL_CAPABILITIES.get(self.model_name, {
             "chat": True,
             "text": True,
+            "text_generation": True,
             "image_generation": False,
             "image_analysis": False,
             "thinking": False

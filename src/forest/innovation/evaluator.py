@@ -7,14 +7,14 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from forest.models import Node, StringId, ConceptSynthesisResult
-from forest.innovation.models import InnovationEvaluation, InnovationCriterion
-from storage.mongodb import MongoDBProvider
-from ai.base import TextGenerationModel
-from ai.factory import get_text_generation_model
-from common.base_service import BaseService
-from common.decorators import track_energy, handle_errors, log_operation
-from common.exceptions import EvaluationError
+from src.forest.models import Node, StringId, ConceptSynthesisResult
+from src.forest.innovation.models import InnovationEvaluation, InnovationCriterion
+from src.storage.mongodb import MongoDBProvider
+from src.ai.base import TextGenerationModel
+from src.ai.factory import get_text_generation_model
+from src.common.base_service import BaseService
+from src.common.decorators import track_energy, handle_errors, log_operation
+from src.common.exceptions import EvaluationError
 
 logger = logging.getLogger(__name__)
 

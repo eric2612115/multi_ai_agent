@@ -5,8 +5,8 @@
 from typing import Dict, Type, Any, Optional, List, Set
 import importlib
 import logging
-from ai.base import AIModel, TextGenerationModel, EmbeddingModel, SearchModel, WebExtractionModel
-from common.exceptions import ConfigError
+from src.ai.base import AIModel, TextGenerationModel, EmbeddingModel, SearchModel, WebExtractionModel
+from src.common.exceptions import ConfigError
 
 # 模型类型注册表
 _model_registry: Dict[str, Type[AIModel]] = {}
@@ -49,8 +49,8 @@ def create_ai_model(model_type: str, **kwargs) -> AIModel:
         _load_model_implementation(model_type)
     
     # 从注册表获取模型类
-    print(_model_registry)
     if model_type not in _model_registry:
+        logger.error(f"尝试创建未注册的模型类型: {model_type}，已注册的模型: {list(_model_registry.keys())}")
         raise ValueError(f"不支持的模型类型: {model_type}")
     
     model_class = _model_registry[model_type]
@@ -90,12 +90,41 @@ def get_ai_model(model_type: str = "default", **kwargs) -> AIModel:
     if model_type == "default":
         from common.config import get_settings
         model_type = get_settings().ai.default_service
+        
+        # 确保默认服务被设置
+        if not model_type or model_type == "default":
+            # 加载所有可能的模型实现
+            try:
+                import ai.gemini
+                model_type = "gemini"
+            except ImportError:
+                try:
+                    import ai.claude
+                    model_type = "claude"
+                except ImportError:
+                    raise ValueError("没有可用的默认AI模型服务. 请确保至少安装一个AI服务依赖 (gemini 或 claude)")
     
     # 如果实例不存在则创建
     if model_type not in _model_instances:
         _model_instances[model_type] = create_ai_model(model_type, **kwargs)
     
     return _model_instances[model_type]
+
+
+def get_text_model(model_type: str = "default", **kwargs) -> TextGenerationModel:
+    """获取文本生成模型实例（别名 get_text_generation_model）。
+    
+    Args:
+        model_type: 要获取的模型类型。
+        **kwargs: 如果需要创建，传递给模型构造函数的参数。
+        
+    Returns:
+        TextGenerationModel 实例。
+        
+    Raises:
+        TypeError: 如果模型不支持文本生成。
+    """
+    return get_text_generation_model(model_type, **kwargs)
 
 
 def get_text_generation_model(model_type: str = "default", **kwargs) -> TextGenerationModel:

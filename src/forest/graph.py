@@ -9,11 +9,11 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 from datetime import datetime
 from bson import ObjectId
 
-from storage.mongodb import MongoDBProvider
-from forest.models import Node, Edge, KnowledgeExtractionResult, PlacementDecision, GraphUpdateResult
-from forest.placement import KnowledgePlacementService
-from common.config import get_settings
-from common.exceptions import GraphError
+from src.storage.mongodb import MongoDBProvider
+from src.forest.models import Node, Edge, KnowledgeExtractionResult, PlacementDecision, GraphUpdateResult
+from src.forest.placement import KnowledgePlacementService
+from src.common.config import get_settings
+from src.common.exceptions import GraphError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -280,13 +280,21 @@ class KnowledgeGraphManager:
             
         # Create updated data
         update_data = {
-            "updated_at": datetime.utcnow(),
-            # Add conversation and message IDs if not already present
-            "$addToSet": {
-                "conversation_ids": ObjectId(conversation_id),
-                "message_ids": ObjectId(message_id)
-            }
+            "updated_at": datetime.utcnow()
         }
+        
+        # Handle array fields manually to avoid ObjectId issues
+        # Handle conversation_ids update
+        if "conversation_ids" not in node:
+            update_data["conversation_ids"] = [conversation_id]
+        elif conversation_id not in node["conversation_ids"]:
+            update_data["conversation_ids"] = node["conversation_ids"] + [conversation_id]
+            
+        # Handle message_ids update
+        if "message_ids" not in node:
+            update_data["message_ids"] = [message_id]
+        elif message_id not in node["message_ids"]:
+            update_data["message_ids"] = node["message_ids"] + [message_id]
         
         # Merge summaries if both exist
         if node.get("summary") and extraction_result.summary:
@@ -451,16 +459,30 @@ class KnowledgeGraphManager:
                 # Update the existing node to add the conversation and message IDs
                 node_id = str(existing_nodes[0]["_id"])
                 
+                # First get the document to check existing arrays
+                node_doc = await self.storage.get_document("nodes", node_id)
+                
+                # Update carefully to avoid ObjectId issues
+                update_data = {
+                    "updated_at": datetime.utcnow()
+                }
+                
+                # Handle conversation_ids update
+                if "conversation_ids" not in node_doc:
+                    update_data["conversation_ids"] = [conversation_id]
+                elif conversation_id not in node_doc["conversation_ids"]:
+                    update_data["conversation_ids"] = node_doc["conversation_ids"] + [conversation_id]
+                
+                # Handle message_ids update
+                if "message_ids" not in node_doc:
+                    update_data["message_ids"] = [message_id]
+                elif message_id not in node_doc["message_ids"]:
+                    update_data["message_ids"] = node_doc["message_ids"] + [message_id]
+                
                 await self.storage.update_document(
                     collection="nodes",
                     document_id=node_id,
-                    update_data={
-                        "$addToSet": {
-                        "conversation_ids": conversation_id,
-                        "message_ids": message_id
-                        },
-                        "updated_at": datetime.utcnow()
-                    }
+                    update_data=update_data
                 )
                 
                 return node_id
@@ -818,7 +840,7 @@ class KnowledgeGraphManager:
             topic_nodes = await self.storage.find_documents(
                 collection="nodes",
                 query={
-                    "user_id": ObjectId(user_id),
+                    "user_id": user_id,
                     "topic_cluster_id": topic_id
                 }
             )
@@ -867,7 +889,7 @@ class KnowledgeGraphManager:
             external_edges = await self.storage.find_documents(
                 collection="edges",
                 query={
-                    "user_id": ObjectId(user_id),
+                    "user_id": user_id,
                     "$or": [
                         {
                             "source_node_id": {"$in": [node["_id"] for node in topic_nodes]},

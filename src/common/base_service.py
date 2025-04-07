@@ -12,8 +12,8 @@ from typing import Optional, Dict, Any, List, Callable, Type, TypeVar, Generic
 import asyncio
 from datetime import datetime
 
-from storage.mongodb import MongoDBProvider
-from common.exceptions import ServiceError
+from src.storage.mongodb import MongoDBProvider
+from src.common.exceptions import ServiceError
 
 # Generic type for service configuration
 T = TypeVar('T')

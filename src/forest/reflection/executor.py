@@ -7,21 +7,21 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union
 
-from forest.models import (
+from src.forest.models import (
     Node, Edge, NodeStatus, AbstractionLevel,
     RelationshipType, AbstractionCluster, StrategyAdjustment, StringId,
     SynthesisType, ReflectionTask
 )
-from storage.mongodb import MongoDBProvider
-from forest.graph import KnowledgeGraphManager
-from forest.energy.manager_combined import EnergyManager
-from forest.lifecycle.manager_combined import LifecycleManager
-from forest.abstraction.generator_combined import AbstractionGenerator
-from forest.innovation.api import InnovationAPI
-from ai.base import TextGenerationModel
-from ai.factory import get_text_generation_model
-from common.config import get_settings
-from common.exceptions import ExecutionError
+from src.storage.mongodb import MongoDBProvider
+from src.forest.graph import KnowledgeGraphManager
+from src.forest.energy.manager_combined import EnergyManager
+from src.forest.lifecycle.manager_combined import LifecycleManager
+from src.forest.abstraction.generator_combined import AbstractionGenerator
+from src.forest.innovation.api import InnovationAPI
+from src.ai.base import TextGenerationModel
+from src.ai.factory import get_text_generation_model
+from src.common.config import get_settings
+from src.common.exceptions import ExecutionError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -199,7 +199,7 @@ class TaskExecutor:
         Returns:
             Energy pool type
         """
-        from forest.energy.models import EnergyPoolType
+        from src.forest.energy.models import EnergyPoolType
         
         # Get the pool name from mapping
         pool_name = self.energy_pool_mapping.get(task_type, "reflection")  # Default to reflection

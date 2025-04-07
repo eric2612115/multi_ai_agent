@@ -11,16 +11,16 @@ import json
 import uuid
 import re
 
-from common.base_service import BaseService
-from common.decorators import track_energy, handle_errors, log_operation
-from common.exceptions import AcquisitionError
-from storage.mongodb import MongoDBProvider
-from forest.extraction_service import KnowledgeExtractionService
-from forest.placement import KnowledgePlacementService
-from forest.graph import KnowledgeGraphManager
-from forest.energy.manager_combined import EnergyManager
-from forest.models import KnowledgeGap, GapType
-from common.config import get_settings
+from src.common.base_service import BaseService
+from src.common.decorators import track_energy, handle_errors, log_operation
+from src.common.exceptions import AcquisitionError
+from src.storage.mongodb import MongoDBProvider
+from src.forest.extraction_service import KnowledgeExtractionService
+from src.forest.placement import KnowledgePlacementService
+from src.forest.graph import KnowledgeGraphManager
+from src.forest.energy.manager_combined import EnergyManager
+from src.forest.models import KnowledgeGap, GapType
+from src.common.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -72,19 +72,19 @@ class AcquisitionManager(BaseService):
         
         # Lazy initialize components if not provided
         if self.energy_manager is None and self.storage is not None:
-            from forest.energy.manager_combined import EnergyManager
+            from src.forest.energy.manager_combined import EnergyManager
             self.energy_manager = EnergyManager(storage_provider=self.storage)
             
         if self.extraction_service is None:
-            from forest.extraction_service import KnowledgeExtractionService
+            from src.forest.extraction_service import KnowledgeExtractionService
             self.extraction_service = KnowledgeExtractionService()
             
         if self.placement_service is None and self.storage is not None:
-            from forest.placement import KnowledgePlacementService
+            from src.forest.placement import KnowledgePlacementService
             self.placement_service = KnowledgePlacementService(storage_provider=self.storage)
             
         if self.graph_manager is None and self.storage is not None:
-            from forest.graph import KnowledgeGraphManager
+            from src.forest.graph import KnowledgeGraphManager
             self.graph_manager = KnowledgeGraphManager(storage_provider=self.storage)
     
     async def _cleanup(self) -> None:
@@ -719,7 +719,7 @@ class AcquisitionManager(BaseService):
             for query in search_queries[:3]:  # Limit to top 3 queries
                 # Use web search API (e.g., Firecrawl integration)
                 try:
-                    from ai.firecrawl import FirecrawlProvider
+                    from src.ai.firecrawl import FirecrawlProvider
                     firecrawl = FirecrawlProvider()
                     
                     search_results = await firecrawl.search(query)
@@ -972,7 +972,7 @@ class AcquisitionManager(BaseService):
             for query in search_queries[:2]:  # Limit to top 2 queries
                 # Check for access to document repositories
                 try:
-                    from storage.document_repository import DocumentRepository
+                    from src.storage.document_repository import DocumentRepository
                     document_repo = DocumentRepository()
                     
                     documents = await document_repo.search(query)

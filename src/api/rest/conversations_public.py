@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Path, Body, status
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from services.message_storage import MessageStorageService
+from src.services.message_storage import MessageStorageService
 
 # Setup logging
 logger = logging.getLogger(__name__)

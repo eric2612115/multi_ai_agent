@@ -10,11 +10,11 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 import uuid
 
-from forest.tasks import KnowledgeForestTaskHandler
-from forest.graph import KnowledgeGraphManager
-from services.event_bus import EventBus
-from common.auth import get_current_user, User
-from storage.vector_search import VectorSearch
+from src.forest.tasks import KnowledgeForestTaskHandler
+from src.forest.graph import KnowledgeGraphManager
+from src.services.event_bus import EventBus
+from src.common.auth import get_current_user, User
+from src.storage.vector_search import VectorSearch
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
 # Import the models from knowledge_forest.py
-from api.rest.knowledge_forest import (
+from src.api.rest.knowledge_forest import (
     NodeFeedbackRequest, EdgeCreationRequest, TaskResponse,
     get_task_handler, get_graph_manager, get_event_bus
 )
@@ -413,7 +413,7 @@ async def normalize_query(query: str, text_model = None) -> Dict[str, Any]:
     # Get language detector and optional text model
     if not text_model:
         try:
-            from ai.factory import get_text_generation_model
+            from src.ai.factory import get_text_generation_model
             text_model = get_text_generation_model()
         except Exception as e:
             logger.warning(f"Could not get text model for query expansion: {str(e)}")
@@ -500,12 +500,12 @@ async def search_knowledge(
     """
     try:
         # Initialize vector search
-        from storage.vector_search import VectorSearch
+        from src.storage.vector_search import VectorSearch
         vector_search = await VectorSearch.create()
         
         # Get embedding provider
-        from ai.base import get_default_embedding_provider
-        from ai.factory import get_text_generation_model
+        from src.ai.base import get_default_embedding_provider
+        from src.ai.factory import get_text_generation_model
         embedding_provider = get_default_embedding_provider()
         text_model = get_text_generation_model()
         

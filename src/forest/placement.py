@@ -12,7 +12,7 @@ from ai.base import TextGenerationModel
 from ai.factory import get_text_generation_model
 from storage.mongodb import MongoDBProvider
 from storage.vector_search import MongoDBVectorProvider
-from forest.models import PlacementDecision, KnowledgeExtractionResult, Node
+from forest.models import PlacementDecision, KnowledgeExtractionResult, Node, PlacementStrategy, PlacementAction, RelationshipType
 from common.config import get_settings
 from common.exceptions import PlacementError
 
@@ -45,7 +45,21 @@ class KnowledgePlacementService:
             
         # Lazy initialize text model if not provided
         if self.text_model is None:
-            self.text_model = get_text_generation_model()
+            try:
+                # 直接初始化一个Gemini实例而不是使用工厂方法（避免可能的循环依赖）
+                from src.ai.gemini import GeminiAI
+                self.text_model = GeminiAI()
+                logger.info("Successfully initialized GeminiAI directly as text model for placement service")
+            except Exception as e:
+                logger.warning(f"Failed to initialize GeminiAI directly: {str(e)}")
+                # Try with Claude
+                try:
+                    from src.ai.claude import ClaudeModel
+                    self.text_model = ClaudeModel()
+                    logger.info("Successfully initialized ClaudeModel directly as text model for placement service")
+                except Exception as e2:
+                    logger.warning(f"Failed to initialize Claude directly: {str(e2)}")
+                    self.text_model = None
     
     async def decide_placement(self, extraction_result: KnowledgeExtractionResult, 
                              user_id: str) -> PlacementDecision:
@@ -87,11 +101,11 @@ class KnowledgePlacementService:
             )
             
             # Default placement is new tree
-            placement = "new_tree"
+            placement = PlacementStrategy.NEW_TREE
             parent_node_info = None
             relationship_to_parent = None
             target_topic_cluster_id = str(uuid.uuid4())  # Generate new topic ID for new trees
-            action_type = "create_new"
+            action_type = PlacementAction.CREATE_NEW
             
             # Check for exact or near-duplicates first
             duplicate_node = None
@@ -118,10 +132,10 @@ class KnowledgePlacementService:
             
             # If we found a duplicate, update it instead of creating a new node
             if duplicate_node:
-                placement = "duplicate"
+                placement = PlacementStrategy.DUPLICATE
                 parent_node_info = duplicate_node
                 target_topic_cluster_id = duplicate_node.get("topic_cluster_id", target_topic_cluster_id)
-                action_type = "update_existing"
+                action_type = PlacementAction.UPDATE_EXISTING
                 logger.info(f"Detected duplicate content - updating existing node instead of creating new one")
             
             # If no duplicates but similar nodes found, determine placement
@@ -131,7 +145,7 @@ class KnowledgePlacementService:
                 
                 if top_score >= self.threshold_extend:
                     # Candidate for extension
-                    placement = "extend"
+                    placement = PlacementStrategy.EXTEND
                     parent_node_info = top_node
                     target_topic_cluster_id = parent_node_info.get("topic_cluster_id", target_topic_cluster_id)
                     
@@ -142,22 +156,22 @@ class KnowledgePlacementService:
                     )
                     
                     if extend_decision == "update_parent":
-                        action_type = "update_existing"
+                        action_type = PlacementAction.UPDATE_EXISTING
                     else:  # extend_decision == "create_child"
-                        action_type = "create_child"
-                        relationship_to_parent = "extends"
+                        action_type = PlacementAction.CREATE_CHILD
+                        relationship_to_parent = RelationshipType.EXTENDS
                         
                 elif top_score >= self.threshold_branch:
                     # Create a branch
-                    placement = "branch"
-                    action_type = "create_child"
+                    placement = PlacementStrategy.BRANCH
+                    action_type = PlacementAction.CREATE_CHILD
                     parent_node_info = top_node
-                    relationship_to_parent = "branches_from"
+                    relationship_to_parent = RelationshipType.BRANCHES_FROM
                     target_topic_cluster_id = parent_node_info.get("topic_cluster_id", target_topic_cluster_id)
             
             # Check if we have enough content to create a meaningful node
             # A good node should have at least a few entities and a meaningful summary
-            if action_type in ["create_new", "create_child"] and (
+            if action_type in [PlacementAction.CREATE_NEW, PlacementAction.CREATE_CHILD] and (
                 len(entities) < 2 or 
                 len(summary) < 20 or 
                 summary.lower() in ["empty", "no content", "no information"]
@@ -165,12 +179,12 @@ class KnowledgePlacementService:
                 logger.warning(f"Insufficient content for node creation - entities: {len(entities)}, summary length: {len(summary)}")
                 # Fallback to not adding a node or updating the parent if possible
                 if parent_node_info:
-                    action_type = "update_existing"
-                    placement = "insufficient_content"
+                    action_type = PlacementAction.UPDATE_EXISTING
+                    placement = PlacementStrategy.INSUFFICIENT_CONTENT
                 else:
                     # No parent to update and insufficient content, so don't create a node
-                    action_type = "no_action"
-                    placement = "insufficient_content"
+                    action_type = PlacementAction.NO_ACTION
+                    placement = PlacementStrategy.INSUFFICIENT_CONTENT
             
             # Create the placement decision
             decision = PlacementDecision(

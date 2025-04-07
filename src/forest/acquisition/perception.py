@@ -11,12 +11,12 @@ import json
 import uuid
 import re
 
-from common.base_service import BaseService
-from common.decorators import track_energy, handle_errors, log_operation
-from common.exceptions import AcquisitionError
-from storage.mongodb import MongoDBProvider
-from forest.acquisition.manager import AcquisitionManager
-from common.config import get_settings
+from src.common.base_service import BaseService
+from src.common.decorators import track_energy, handle_errors, log_operation
+from src.common.exceptions import AcquisitionError
+from src.storage.mongodb import MongoDBProvider
+from src.forest.acquisition.manager import AcquisitionManager
+from src.common.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class PerceptionSystem(BaseService):
         
         # Lazy initialize components if not provided
         if self.acquisition_manager is None and self.storage is not None:
-            from forest.acquisition.manager import AcquisitionManager
+            from src.forest.acquisition.manager import AcquisitionManager
             self.acquisition_manager = AcquisitionManager(storage_provider=self.storage)
             
         # Load monitored sources from database

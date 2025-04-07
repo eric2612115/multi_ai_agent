@@ -12,12 +12,12 @@ from datetime import datetime
 import uuid
 import traceback
 
-from common.auth import get_current_user, User
-from common.config import get_settings
-from services.event_bus import EventBus
+from src.common.auth import get_current_user, User
+from src.common.config import get_settings
+from src.services.event_bus import EventBus
 from .ws_connection_manager import chat_manager
 from .message_formatter import MessageFormatter
-from ai.chat_agent import ChatAgent
+from src.ai.chat_agent import ChatAgent
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ async def chat_websocket_endpoint(websocket: WebSocket):
         
         # Initialize user if needed
         try:
-            from common.initialization import initialize_new_user
+            from src.common.initialization import initialize_new_user
             # Use lazy initialization to improve startup performance
             await initialize_new_user(user_id, lazy_init=True)
         except Exception as e:
@@ -90,7 +90,7 @@ async def chat_websocket_endpoint(websocket: WebSocket):
             # Check MongoDB connection
             mongo_connected = False
             try:
-                from storage.mongodb import MongoDBProvider
+                from src.storage.mongodb import MongoDBProvider
                 mongo_provider = MongoDBProvider()
                 mongo_connected = await mongo_provider.connect()
                 await mongo_provider.close()
@@ -298,7 +298,7 @@ async def chat_websocket_endpoint(websocket: WebSocket):
                         continue
                     
                     # Check if agent is already processing a request
-                    if chat_manager.is_agent_busy(user_id):
+                    if await chat_manager.is_agent_busy(user_id):
                         await websocket.send_json(MessageFormatter.format_error(
                             "Agent is busy processing another request. Please wait.",
                             error_code="AGENT_BUSY"
@@ -315,8 +315,8 @@ async def chat_websocket_endpoint(websocket: WebSocket):
                     # Check if this is the first message for this user
                     # If it is, initialize their knowledge forest
                     try:
-                        from storage.mongodb import MongoDBProvider
-                        from common.initialization import initialize_new_user
+                        from src.storage.mongodb import MongoDBProvider
+                        from src.common.initialization import initialize_new_user
                         
                         storage = MongoDBProvider()
                         if await storage.is_connected():

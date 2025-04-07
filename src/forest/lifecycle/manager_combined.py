@@ -8,12 +8,12 @@ import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Set, Tuple, Callable
 
-from forest.models import Node, NodeStatus, StringId
-from forest.lifecycle.state_transition_combined import StateTransitionEngine
-from storage.mongodb import MongoDBProvider
-from forest.graph import KnowledgeGraphManager
-from common.config import get_settings
-from common.exceptions import LifecycleError
+from src.forest.models import Node, NodeStatus, StringId
+from src.forest.lifecycle.state_transition_combined import StateTransitionEngine
+from src.storage.mongodb import MongoDBProvider
+from src.forest.graph import KnowledgeGraphManager
+from src.common.config import get_settings
+from src.common.exceptions import LifecycleError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ class LifecycleManager:
         """
         try:
             # Get revival threshold
-            revival_threshold = settings.knowledge_lifecycle.revival_threshold
+            revival_threshold = settings.lifecycle.revival_threshold
             
             # Find candidates
             query = {

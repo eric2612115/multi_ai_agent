@@ -8,8 +8,8 @@ import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Set, Tuple, Callable
 
-from forest.models import Node, NodeStatus
-from common.config import get_settings
+from src.forest.models import Node, NodeStatus
+from src.common.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -322,13 +322,13 @@ class StateTransitionEngine:
             return False, f"Node is protected until {protect_until.isoformat()}"
             
         # Check node importance
-        dormancy_threshold = settings.knowledge_lifecycle.node_dormancy_threshold
+        dormancy_threshold = settings.lifecycle.node_dormancy_threshold
         
         if node.importance_score > dormancy_threshold:
             return False, f"Node importance too high ({node.importance_score:.2f} > {dormancy_threshold})"
             
         # Check node age
-        min_age_days = settings.knowledge_lifecycle.node_min_age_days
+        min_age_days = settings.lifecycle.node_min_age_days
         node_age_days = (datetime.utcnow() - node.created_at).total_seconds() / (24 * 3600)
         
         if node_age_days < min_age_days:

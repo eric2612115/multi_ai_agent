@@ -6,7 +6,7 @@ import logging
 import json
 from typing import Dict, List, Any, Optional, Union
 
-from ai.gemini import GeminiAI
+from src.ai.gemini import GeminiAI
 
 logger = logging.getLogger(__name__)
 

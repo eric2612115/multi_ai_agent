@@ -7,13 +7,13 @@ import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
-from forest.models import (
+from src.forest.models import (
     ReflectionTask, NodeStatus
 )
-from forest.reflection.handlers.base import TaskHandler
-from common.exceptions import ExecutionError
-from common.decorators import handle_errors
-from common.config import get_settings
+from src.forest.reflection.handlers.base import TaskHandler
+from src.common.exceptions import ExecutionError
+from src.common.decorators import handle_errors
+from src.common.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class LifecycleManagementHandler(TaskHandler):
         """Get the task type this handler supports."""
         return "knowledge_lifecycle_management"
     
-    @handle_errors(error_type=ExecutionError)
+    @handle_errors(error_class=ExecutionError)
     async def handle(self, user_id: str, task: ReflectionTask) -> Dict[str, Any]:
         """Handle knowledge lifecycle management task."""
         result = {
@@ -69,7 +69,7 @@ class LifecycleManagementHandler(TaskHandler):
             )
             
             # Create handler and execute
-            from forest.reflection.handlers.knowledge_pruning import KnowledgePruningHandler
+            from src.forest.reflection.handlers.knowledge_pruning import KnowledgePruningHandler
             pruning_handler = KnowledgePruningHandler(self.executor)
             pruning_result = await pruning_handler.handle(user_id, pruning_task)
             
@@ -100,7 +100,7 @@ class LifecycleManagementHandler(TaskHandler):
     
     async def _revive_important_dormant_nodes(self, user_id: str) -> List[str]:
         """Revive dormant nodes that might be important again."""
-        revival_threshold = settings.knowledge_lifecycle.revival_threshold
+        revival_threshold = settings.lifecycle.revival_threshold
         
         # Find dormant nodes with increased access recently
         dormant_nodes = await self.storage.find_documents(

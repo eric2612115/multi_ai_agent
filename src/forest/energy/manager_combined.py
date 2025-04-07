@@ -11,14 +11,14 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 
-from forest.energy.models import (
+from src.forest.energy.models import (
     EnergyAllocation, EnergyTransaction, 
     EnergyPoolType, EnergyTransactionType
 )
-from forest.models import StringId
-from storage.mongodb import MongoDBProvider
-from common.config import get_settings
-from common.exceptions import EnergyError
+from src.forest.models import StringId
+from src.storage.mongodb import MongoDBProvider
+from src.common.config import get_settings
+from src.common.exceptions import EnergyError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -692,8 +692,7 @@ class EnergyManager:
                 # Get all users with allocations
                 allocations = await self.storage.find_documents(
                     "energy_allocations",
-                    {},
-                    projection={"user_id": 1, "last_replenishment": 1}
+                    {}
                 )
 
                 # Check which need replenishment

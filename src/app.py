@@ -3,7 +3,7 @@
 This module defines the main FastAPI application with all routes and dependencies.
 """
 # Make sure environment variables are loaded first
-from common.env_loader import load_environment_variables
+from src.common.env_loader import load_environment_variables
 
 import logging
 import asyncio
@@ -18,22 +18,34 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 # Import API routers
-from api.rest.knowledge_forest import router as knowledge_router
-from api.rest.knowledge_forest_additional import router as knowledge_additional_router
-from api.rest.knowledge_forest_public import router as knowledge_public_router
-from api.rest.conversations import router as conversations_router
-from api.rest.conversations_public import router as conversations_public_router
-from api.rest.debug import router as debug_router
-from api.rest.auth import router as auth_router
-from api.rest.reflection import router as reflection_router
-from api.websocket.notifications import router as ws_router
-from api.websocket.notifications import startup as ws_startup
+from src.api.rest.knowledge_forest import router as knowledge_router
+from src.api.rest.knowledge_forest_additional import router as knowledge_additional_router
+from src.api.rest.knowledge_forest_public import router as knowledge_public_router
+from src.api.rest.conversations import router as conversations_router
+from src.api.rest.conversations_public import router as conversations_public_router
+from src.api.rest.debug import router as debug_router
+from src.api.rest.auth import router as auth_router
+from src.api.rest.reflection import router as reflection_router
+from src.api.websocket.notifications import router as ws_router
+from src.api.websocket.notifications import startup as ws_startup
+
+# Setup logging
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# Import knowledge distillation router
+try:
+    from src.api.rest.knowledge_distillation import router as distillation_router
+    logger.info("Knowledge distillation router imported successfully")
+except ImportError as e:
+    logger.warning(f"Failed to import knowledge distillation router: {e}")
+    distillation_router = None
 
 # Import dependencies
-from dependencies.mongodb import initialize_mongodb_provider
-import logging
-
-logger = logging.getLogger(__name__)
+from src.dependencies.mongodb import initialize_mongodb_provider
 
 # Scheduled task functions
 async def run_scheduled_reflection():
@@ -193,37 +205,45 @@ async def run_system_evaluation():
         logger.error(f"Error in system evaluation: {str(e)}")
 # Import chat WebSocket router
 try:
-    from api.websocket.chat.ws_chat import router as chat_ws_router
+    from src.api.websocket.chat.ws_chat import router as chat_ws_router
     logger.info("Chat WebSocket router imported successfully")
 except ImportError as e:
     logger.warning(f"Failed to import chat WebSocket router: {e}")
     chat_ws_router = None
 
+# Import thinking WebSocket router
+try:
+    from src.api.websocket.chat.ws_thinking import router as thinking_ws_router
+    logger.info("Thinking WebSocket router imported successfully")
+except ImportError as e:
+    logger.warning(f"Failed to import thinking WebSocket router: {e}")
+    thinking_ws_router = None
+
 # Import MCP integration
-from api.mcp.knowledge_tools import register_knowledge_tools
-from api.mcp.mcp_integration import get_mcp_integration
+from src.api.mcp.knowledge_tools import register_knowledge_tools
+from src.api.mcp.mcp_integration import get_mcp_integration
 
 # Import services
-from forest.tasks import KnowledgeForestTaskHandler
-from services.event_bus import EventBus
-from services.task_queue import TaskQueue
-from services.message_storage import MessageStorageService
-from storage.mongodb import MongoDBProvider
-from forest.graph import KnowledgeGraphManager
-from forest.extraction import KnowledgeExtractor
-from forest.extraction_service import KnowledgeExtractionService
-from forest.placement import KnowledgePlacementService
+from src.forest.tasks import KnowledgeForestTaskHandler
+from src.services.event_bus import EventBus
+from src.services.task_queue import TaskQueue
+from src.services.message_storage import MessageStorageService
+from src.storage.mongodb import MongoDBProvider
+from src.forest.graph import KnowledgeGraphManager
+from src.forest.extraction import KnowledgeExtractor
+from src.forest.extraction_service import KnowledgeExtractionService
+from src.forest.placement import KnowledgePlacementService
 
 # Import common functionality
-from common.config import get_settings
-from common.initialization import initialize_new_user
+from src.common.config import get_settings
+from src.common.initialization import initialize_new_user
 
 # Get settings
 settings = get_settings()
 
 # Setup logging
 logging.basicConfig(
-    level=getattr(logging, settings.environment.upper(), "INFO"),
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -288,7 +308,7 @@ async def lifespan(app: FastAPI):
                 
                 # Register message event handlers
                 try:
-                    from api.rest.message_handlers import register_message_handlers
+                    from src.api.rest.message_handlers import register_message_handlers
                     await register_message_handlers()
                     logger.info("Message handlers registered successfully")
                 except Exception as handler_err:
@@ -358,41 +378,49 @@ async def lifespan(app: FastAPI):
             try:
                 # Initialize Energy System
                 logger.info("Initializing Energy Management System")
-                from forest.energy.manager_combined import EnergyManager
+                from src.forest.energy.manager_combined import EnergyManager
                 energy_manager = EnergyManager(storage_provider=mongo_db)
-                await energy_manager.start()
-                logger.info("Energy Management System initialized successfully")
+                try:
+                    await energy_manager.start()
+                    logger.info("Energy Management System initialized successfully")
+                except Exception as e:
+                    logger.error(f"Failed to initialize Energy Management System: {str(e)}")
+                    energy_manager = None
                 
                 # Initialize Lifecycle Management System
                 logger.info("Initializing Lifecycle Management System")
-                from forest.lifecycle.manager_combined import LifecycleManager
+                from src.forest.lifecycle.manager_combined import LifecycleManager
                 lifecycle_manager = LifecycleManager(storage_provider=mongo_db, graph_manager=graph_manager)
                 logger.info("Lifecycle Management System initialized successfully")
                 
                 # Initialize Abstraction System
                 logger.info("Initializing Abstraction Management System")
-                from forest.abstraction.generator_combined import AbstractionGenerator
+                from src.forest.abstraction.generator_combined import AbstractionGenerator
                 abstraction_generator = AbstractionGenerator(storage_provider=mongo_db, graph_manager=graph_manager)
                 logger.info("Abstraction Management System initialized successfully")
                 
                 # Initialize Balance Manager
                 logger.info("Initializing Balance Manager")
-                from forest.balance.manager import BalanceManager
+                from src.forest.balance.manager import BalanceManager
                 balance_manager = BalanceManager(
                     storage_provider=mongo_db,
                     energy_manager=energy_manager,
                     lifecycle_manager=lifecycle_manager
                 )
-                await balance_manager.start()
-                logger.info("Balance Manager initialized successfully")
+                try:
+                    await balance_manager.start()
+                    logger.info("Balance Manager initialized successfully")
+                except Exception as e:
+                    logger.error(f"Failed to initialize Balance Manager: {str(e)}")
+                    balance_manager = None
                 
                 # Initialize Reflection System
                 logger.info("Initializing Reflection System")
-                from forest.reflection.core import ReflectionSystem
+                from src.forest.reflection.core import ReflectionSystem
                 reflection_system = ReflectionSystem(
                     storage_provider=mongo_db,
                     energy_manager=energy_manager,
-                    balance_manager=balance_manager
+                    abstraction_generator=abstraction_generator
                 )
                 logger.info("Reflection System initialized successfully")
                 
@@ -412,8 +440,8 @@ async def lifespan(app: FastAPI):
                     logger.info(f"Scheduled periodic reflection every {reflection_interval} hours")
                 
                 # Setup periodic lifecycle maintenance
-                if lifecycle_manager and settings.knowledge_lifecycle.enable_auto_pruning:
-                    pruning_interval = settings.knowledge_lifecycle.pruning_interval_hours
+                if lifecycle_manager and settings.lifecycle.enable_auto_pruning:
+                    pruning_interval = settings.lifecycle.pruning_interval_hours
                     scheduler.add_job(
                         run_lifecycle_maintenance,
                         IntervalTrigger(hours=pruning_interval),
@@ -435,7 +463,7 @@ async def lifespan(app: FastAPI):
                 
                 # Initialize Evaluation System
                 logger.info("Initializing System Evaluation")
-                from forest.evaluation.evaluator import SystemEvaluator
+                from src.forest.evaluation.evaluator import SystemEvaluator
                 evaluation_system = SystemEvaluator(
                     storage_provider=mongo_db,
                     energy_manager=energy_manager,
@@ -443,8 +471,12 @@ async def lifespan(app: FastAPI):
                     reflection_system=reflection_system,
                     graph_manager=graph_manager
                 )
-                await evaluation_system.start()
-                logger.info("System Evaluation initialized successfully")
+                try:
+                    await evaluation_system.start()
+                    logger.info("System Evaluation initialized successfully")
+                except Exception as e:
+                    logger.error(f"Failed to initialize System Evaluation: {str(e)}")
+                    evaluation_system = None
                 
                 # Schedule periodic evaluation
                 if evaluation_system and settings.evaluation.enable_auto_optimization:
@@ -513,7 +545,7 @@ async def lifespan(app: FastAPI):
         # Create default user for development
         if settings.environment == "development":
             try:
-                from common.initialization import create_default_user
+                from src.common.initialization import create_default_user
                 await create_default_user()
                 logger.info("Created default user for development environment")
             except Exception as e:
@@ -556,7 +588,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error stopping balance manager: {str(e)}")
             
-    if evaluation_system:
+    if 'evaluation_system' in locals() and evaluation_system:
         try:
             logger.info("Stopping Evaluation System")
             await evaluation_system.stop()
@@ -630,10 +662,20 @@ app.include_router(auth_router)
 app.include_router(reflection_router)
 app.include_router(ws_router)
 
+# Register knowledge distillation router if available
+if distillation_router:
+    app.include_router(distillation_router)
+    logger.info("Knowledge distillation router registered")
+
 # Register chat WebSocket router if available
 if chat_ws_router:
     app.include_router(chat_ws_router)
     logger.info("Chat WebSocket router registered")
+
+# Register thinking WebSocket router if available
+if thinking_ws_router:
+    app.include_router(thinking_ws_router)
+    logger.info("Thinking WebSocket router registered")
 
 
 # Root endpoint
@@ -651,7 +693,7 @@ async def root():
 @app.get("/debug/mongo")
 async def debug_mongo():
     """Debug MongoDB connection."""
-    from storage.mongodb import MongoDBProvider
+    from src.storage.mongodb import MongoDBProvider
     try:
         mongo_db = MongoDBProvider()
         success = await mongo_db.connect()
@@ -716,10 +758,20 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 # Run the application if executed directly
 if __name__ == "__main__":
+    import argparse
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run AI Knowledge Forest API server")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8001")), help="Port to bind to")
+    parser.add_argument("--reload", action="store_true", default=settings.api.debug_mode, help="Enable auto-reload")
+    args = parser.parse_args()
+    
+    # Run the application
     uvicorn.run(
-        "app:app",  # The import string for the app
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", "8000")),  # Allow port configuration via environment
-        reload=settings.api.debug_mode,
+        "src.app:app",  # The import string for the app
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
         log_level="info"
     )

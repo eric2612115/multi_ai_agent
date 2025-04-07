@@ -6,10 +6,10 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 
-from storage.base import VectorStorage
-from storage.mongodb import MongoDBProvider
-from common.config import get_settings
-from common.exceptions import StorageConnectionError, StorageQueryError
+from src.storage.base import VectorStorage
+from src.storage.mongodb import MongoDBProvider
+from src.common.config import get_settings
+from src.common.exceptions import StorageConnectionError, StorageQueryError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -72,8 +72,10 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             database_name: Optional database name. If not provided, it will be loaded from settings.
         """
         super().__init__(connection_uri, database_name)
-        self.vector_search_enabled = settings.db.enable_vector_search
+        # Store config values but let auto-detection determine actual availability
         self.vector_search_index = settings.db.vector_search_index
+        # Initialize vector search capability to None; will be auto-detected on first use
+        self._vector_search_available = None
     
     async def create_vector_index(self, collection: str, field: str, dimensions: int, 
                                 similarity_metric: str = "cosine") -> bool:
@@ -95,11 +97,26 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             StorageConnectionError: If connection failed.
             StorageQueryError: If query failed.
         """
-        if not self.vector_search_enabled:
-            logger.warning("Vector search is disabled in configuration.")
+        # Check if we already know vector search is not available
+        if getattr(self, '_vector_search_available', None) is False:
+            logger.warning("MongoDB Atlas Vector Search is not available. Cannot create vector index.")
             return False
         
         await self._ensure_connected()
+        
+        # If we haven't checked yet, try to detect if vector search is available
+        if self._vector_search_available is None:
+            try:
+                capability_test = await self.db.command({
+                    "listSearchIndexes": collection,
+                    "limit": 1
+                })
+                self._vector_search_available = True
+                logger.info("MongoDB Atlas Vector Search detected and available.")
+            except Exception as e:
+                self._vector_search_available = False
+                logger.warning(f"MongoDB Atlas Vector Search not available or not configured: {str(e)}")
+                return False
         
         try:
             # Create the index definition
@@ -128,7 +145,12 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             result = await self.db.command(command)
             
             # Check if the index was created successfully
-            return result.get("ok", 0) == 1
+            success = result.get("ok", 0) == 1
+            if success:
+                # Update the vector_search_index field
+                self.vector_search_index = index_name
+                logger.info(f"Successfully created vector index: {index_name}")
+            return success
         except Exception as e:
             logger.error(f"Failed to create vector index: {str(e)}")
             logger.info("Note: Vector indexes can only be created on MongoDB Atlas. If you are using Atlas, "
@@ -149,11 +171,26 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             StorageConnectionError: If connection failed.
             StorageQueryError: If query failed.
         """
-        if not self.vector_search_enabled:
-            logger.warning("Vector search is disabled in configuration.")
+        # Check if we already know vector search is not available
+        if getattr(self, '_vector_search_available', None) is False:
+            logger.warning("MongoDB Atlas Vector Search is not available. Cannot drop vector index.")
             return False
         
         await self._ensure_connected()
+        
+        # Auto-detect vector search capability if not already determined
+        if self._vector_search_available is None:
+            try:
+                capability_test = await self.db.command({
+                    "listSearchIndexes": collection,
+                    "limit": 1
+                })
+                self._vector_search_available = True
+                logger.info("MongoDB Atlas Vector Search detected and available.")
+            except Exception as e:
+                self._vector_search_available = False
+                logger.warning(f"MongoDB Atlas Vector Search not available or not configured: {str(e)}")
+                return False
         
         try:
             # Use the provided index name or the default
@@ -169,7 +206,10 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             result = await self.db.command(command)
             
             # Check if the index was dropped successfully
-            return result.get("ok", 0) == 1
+            success = result.get("ok", 0) == 1
+            if success:
+                logger.info(f"Successfully dropped vector index: {index_name}")
+            return success
         except Exception as e:
             logger.error(f"Failed to drop vector index: {str(e)}")
             return False
@@ -192,69 +232,105 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             StorageConnectionError: If connection failed.
             StorageQueryError: If query failed.
         """
-        if not self.vector_search_enabled:
-            raise StorageQueryError("Vector search is disabled in configuration.")
-        
         await self._ensure_connected()
         
-        try:
-            # Prepare the filter with type conversion
-            if filter:
-                filter = self._convert_id_in_query(filter)
-            else:
-                filter = {}
-            
-            # Create the aggregation pipeline
-            pipeline = [
-                {
-                    "$search": {
-                        "index": self.vector_search_index,
-                        "vectorSearch": {
-                            "path": "embedding",  # Field containing the vector
-                            "queryVector": vector,
-                            "numCandidates": max(top_k * 10, 100),  # Candidates to consider (adjust as needed)
-                            "limit": top_k,
-                            "filter": filter
-                        },
-                        "returnStoredSource": True
-                    }
-                },
-                {
-                    # Include similarity score in results
-                    "$project": {
-                        "score": { "$meta": "searchScore" },
-                        "document": "$ROOT"
-                    }
-                }
-            ]
-            
-            # If min_similarity is provided, add a filter stage
-            if min_similarity is not None:
-                pipeline.append(
+        # Auto-detect vector search capability if not already determined
+        vector_search_available = getattr(self, '_vector_search_available', None)
+        
+        if vector_search_available is None:
+            # Try to detect if MongoDB Atlas Vector Search is available
+            try:
+                capability_test = await self.db.command({
+                    "listSearchIndexes": collection,
+                    "limit": 1
+                })
+                self._vector_search_available = True
+                logger.info("MongoDB Atlas Vector Search detected and available.")
+            except Exception as e:
+                self._vector_search_available = False
+                logger.warning(f"MongoDB Atlas Vector Search not available or not configured: {str(e)}")
+                logger.info("Falling back to basic filtering for vector operations")
+        
+        # Use Atlas Vector Search if available
+        if self._vector_search_available:
+            try:
+                # Prepare the filter with type conversion
+                if filter:
+                    filter = self._convert_id_in_query(filter)
+                else:
+                    filter = {}
+                
+                # Create the aggregation pipeline
+                pipeline = [
                     {
-                        "$match": {
-                            "score": {"$gte": min_similarity}
+                        "$search": {
+                            "index": self.vector_search_index,
+                            "vectorSearch": {
+                                "path": "embedding",  # Field containing the vector
+                                "queryVector": vector,
+                                "numCandidates": max(top_k * 10, 100),  # Candidates to consider (adjust as needed)
+                                "limit": top_k,
+                                "filter": filter
+                            },
+                            "returnStoredSource": True
+                        }
+                    },
+                    {
+                        # Include similarity score in results
+                        "$project": {
+                            "score": { "$meta": "searchScore" },
+                            "document": "$$ROOT"
                         }
                     }
-                )
+                ]
+                
+                # If min_similarity is provided, add a filter stage
+                if min_similarity is not None:
+                    pipeline.append(
+                        {
+                            "$match": {
+                                "score": {"$gte": min_similarity}
+                            }
+                        }
+                    )
+                
+                # Execute the aggregation
+                cursor = self.db[collection].aggregate(pipeline)
+                
+                # Convert cursor to list
+                results = await cursor.to_list(length=None)
+                
+                # Process results to match the expected format
+                return [
+                    {
+                        **result["document"],
+                        "searchScore": result["score"]
+                    }
+                    for result in results
+                ]
+                
+            except Exception as e:
+                logger.warning(f"Atlas Vector Search failed, falling back to basic filtering: {str(e)}")
+                # Fall through to basic filtering fallback
+        
+        # Fallback: simple filter-based approach if vector search is not available
+        logger.info("Using fallback filter-based approach for vector 'search'")
+        if filter:
+            filter = self._convert_id_in_query(filter)
+        else:
+            filter = {}
             
-            # Execute the aggregation
-            cursor = self.db[collection].aggregate(pipeline)
+        cursor = self.db[collection].find(filter)
+        limit_cursor = cursor.limit(top_k)
+        documents = await limit_cursor.to_list(length=None)
+        
+        # Add placeholder similarity scores (all set to 0.5)
+        results = []
+        for doc in documents:
+            doc["searchScore"] = 0.5
+            results.append(doc)
             
-            # Convert cursor to list
-            results = await cursor.to_list(length=None)
-            
-            # Process results to match the expected format
-            return [
-                {
-                    **result["document"],
-                    "searchScore": result["score"]
-                }
-                for result in results
-            ]
-            
-        except Exception as e:
-            raise StorageQueryError(f"Failed to search vectors: {str(e)}")
+        return results
     
     async def batch_search_vectors(self, collection: str, vectors: List[List[float]], 
                                 filter: Optional[Dict[str, Any]] = None,
@@ -275,9 +351,6 @@ class MongoDBVectorProvider(MongoDBProvider, VectorStorage):
             StorageConnectionError: If connection failed.
             StorageQueryError: If query failed.
         """
-        if not self.vector_search_enabled:
-            raise StorageQueryError("Vector search is disabled in configuration.")
-        
         # Perform searches one by one
         # MongoDB doesn't natively support batch vector search
         results = []

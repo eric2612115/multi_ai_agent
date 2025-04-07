@@ -7,10 +7,10 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from forest.models import SystemStateSnapshot
-from storage.mongodb import MongoDBProvider
-from common.config import get_settings
-from common.exceptions import AnalysisError
+from src.forest.models import SystemStateSnapshot
+from src.storage.mongodb import MongoDBProvider
+from src.common.config import get_settings
+from src.common.exceptions import AnalysisError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -706,7 +706,8 @@ class KnowledgeAnalyzer:
             
         # Knowledge lifecycle recommendations - if there are many nodes, consider pruning
         if system_state.node_count > 30:
-            low_importance_nodes = await self._count_low_importance_nodes(system_state.user_id)
+            # For now, use a simplistic approach to estimate low importance nodes
+            low_importance_nodes = int(system_state.node_count * 0.2)  # Assume ~20% are low importance
             if low_importance_nodes > 5:
                 recommendations.append({
                     "type": "knowledge_pruning",

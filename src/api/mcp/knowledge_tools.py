@@ -10,9 +10,9 @@ import asyncio
 from datetime import datetime
 import uuid
 
-from forest.tasks import KnowledgeForestTaskHandler
-from forest.extraction_service import KnowledgeExtractionService
-from services.event_bus import EventBus
+from src.forest.tasks import KnowledgeForestTaskHandler
+from src.forest.extraction_service import KnowledgeExtractionService
+from src.services.event_bus import EventBus
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -267,8 +267,35 @@ def register_knowledge_tools():
     the knowledge tools with the MCP system.
     """
     try:
-        # Create the service instance
-        service = KnowledgeToolsService()
+        # 避免在这里创建实例，可能会导致模型初始化问题
+        # 先检查必要的模型是否已成功初始化
+        from src.ai.factory import get_text_generation_model, get_embedding_model
+        
+        # 尝试创建新实例
+        service = None
+        try:
+            # 确保导入模型定义
+            import src.ai.gemini
+            import src.ai.claude
+            
+            # 创建直接实例，跳过工厂模式和default初始化
+            from src.forest.extraction import KnowledgeExtractor
+            extractor = KnowledgeExtractor()
+            from src.forest.extraction_service import KnowledgeExtractionService
+            extraction_service = KnowledgeExtractionService(extractor=extractor)
+            
+            # 创建任务处理器
+            from src.forest.tasks import KnowledgeForestTaskHandler
+            task_handler = KnowledgeForestTaskHandler(extraction_service=extraction_service)
+            
+            # 创建服务
+            service = KnowledgeToolsService(task_handler=task_handler, extraction_service=extraction_service)
+            logger.info("Successfully created KnowledgeToolsService with direct instantiation")
+            
+        except Exception as e:
+            logger.error(f"Failed to create service with direct instantiation: {str(e)}")
+            # 回退到默认创建方式
+            service = KnowledgeToolsService()
         
         # Define the tools with proper error handling
         tools = []

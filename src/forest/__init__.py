@@ -4,7 +4,7 @@ This module provides functionality for extracting, organizing, and
 retrieving knowledge from conversations.
 """
 # Re-export main models and interfaces
-from forest.models import (
+from src.forest.models import (
     Node,
     Edge,
     NodeVisualAttributes,
@@ -27,7 +27,7 @@ def get_knowledge_extractor(**kwargs):
     Returns:
         A knowledge extractor instance.
     """
-    from forest.extraction import KnowledgeExtractor
+    from src.forest.extraction import KnowledgeExtractor
     return KnowledgeExtractor(**kwargs)
 
 
@@ -40,7 +40,7 @@ def get_knowledge_placement(**kwargs):
     Returns:
         A knowledge placement service instance.
     """
-    from forest.placement import KnowledgePlacementService
+    from src.forest.placement import KnowledgePlacementService
     return KnowledgePlacementService(**kwargs)
 
 
@@ -53,7 +53,7 @@ def get_graph_manager(**kwargs):
     Returns:
         A graph manager instance.
     """
-    from forest.graph import KnowledgeGraphManager
+    from src.forest.graph import KnowledgeGraphManager
     return KnowledgeGraphManager(**kwargs)
 
 
@@ -70,7 +70,7 @@ def get_knowledge_processor(**kwargs):
         A knowledge processor instance.
     """
     # This is a placeholder implementation since the module isn't implemented yet
-    from forest.tasks import KnowledgeForestTaskHandler
+    from src.forest.tasks import KnowledgeForestTaskHandler
     return KnowledgeForestTaskHandler(**kwargs)
 # 
 # 

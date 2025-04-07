@@ -4,10 +4,10 @@ This package provides various optimization strategies that can be applied
 to improve system performance and knowledge quality.
 """
 
-from forest.evaluation.strategies.base import BaseOptimizationStrategy
-from forest.evaluation.strategies.parameter_tuning import ParameterTuningStrategy
-from forest.evaluation.strategies.resource_allocation import ResourceAllocationStrategy
-from forest.evaluation.strategies.structure_optimization import StructureOptimizationStrategy
+from src.forest.evaluation.strategies.base import BaseOptimizationStrategy
+from src.forest.evaluation.strategies.parameter_tuning import ParameterTuningStrategy
+from src.forest.evaluation.strategies.resource_allocation import ResourceAllocationStrategy
+from src.forest.evaluation.strategies.structure_optimization import StructureOptimizationStrategy
 
 __all__ = [
     "BaseOptimizationStrategy",

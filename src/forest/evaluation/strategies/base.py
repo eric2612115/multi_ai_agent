@@ -7,8 +7,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 
-from storage.mongodb import MongoDBProvider
-from common.decorators import track_energy, handle_errors
+from src.storage.mongodb import MongoDBProvider
+from src.common.decorators import track_energy, handle_errors
 
 logger = logging.getLogger(__name__)
 

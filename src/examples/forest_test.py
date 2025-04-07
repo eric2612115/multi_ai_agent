@@ -27,7 +27,7 @@ from storage import (
     get_document_storage,
 )
 
-from ai.factory import get_text_generation_model, get_embedding_model
+from src.ai.factory import get_text_generation_model, get_embedding_model
 
 
 async def setup_test_user():

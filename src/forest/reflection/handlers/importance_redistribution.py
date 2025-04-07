@@ -6,10 +6,10 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from forest.models import ReflectionTask
-from forest.reflection.handlers.base import TaskHandler
-from common.exceptions import ExecutionError
-from common.decorators import handle_errors
+from src.forest.models import ReflectionTask
+from src.forest.reflection.handlers.base import TaskHandler
+from src.common.exceptions import ExecutionError
+from src.common.decorators import handle_errors
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class ImportanceRedistributionHandler(TaskHandler):
         """Get the task type this handler supports."""
         return "importance_redistribution"
     
-    @handle_errors(error_type=ExecutionError)
+    @handle_errors(error_class=ExecutionError)
     async def handle(self, user_id: str, task: ReflectionTask) -> Dict[str, Any]:
         """Handle importance redistribution task."""
         result = {

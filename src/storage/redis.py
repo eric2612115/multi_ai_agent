@@ -12,9 +12,9 @@ import redis.asyncio as redis
 from redis.asyncio.client import Redis
 from redis.exceptions import RedisError, ConnectionError
 
-from storage.base import CacheStorage, MessageQueue
-from common.config import get_settings
-from common.exceptions import StorageConnectionError, StorageQueryError
+from src.storage.base import CacheStorage, MessageQueue
+from src.common.config import get_settings
+from src.common.exceptions import StorageConnectionError, StorageQueryError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

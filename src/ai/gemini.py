@@ -7,8 +7,8 @@ import os
 import time
 from typing import Dict, List, Any, Optional, Union
 
-from ai.base import TextGenerationModel, EmbeddingModel
-from ai.factory import register_ai_model
+from src.ai.base import TextGenerationModel, EmbeddingModel
+from src.ai.factory import register_ai_model
 
 # 嘗試導入 google.generativeai
 try:

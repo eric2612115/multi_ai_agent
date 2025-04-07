@@ -4,7 +4,7 @@ This module provides interfaces and implementations for document storage,
 vector storage, caching, and message queues.
 """
 # Interfaces
-from storage.base import (
+from src.storage.base import (
     StorageProvider,
     DocumentStorage,
     VectorStorage,
@@ -13,9 +13,9 @@ from storage.base import (
 )
 
 # Implementations
-from storage.mongodb import MongoDBProvider
-from storage.vector_search import MongoDBVectorProvider
-from storage.redis import RedisProvider
+from src.storage.mongodb import MongoDBProvider
+from src.storage.vector_search import MongoDBVectorProvider
+from src.storage.redis import RedisProvider
 
 # Convenience factory functions
 def get_document_storage(**kwargs) -> DocumentStorage:
@@ -27,7 +27,7 @@ def get_document_storage(**kwargs) -> DocumentStorage:
     Returns:
         A document storage provider.
     """
-    from common.config import get_settings
+    from src.common.config import get_settings
     settings = get_settings()
     
     # Default to MongoDB
@@ -44,7 +44,7 @@ def get_vector_storage(**kwargs) -> VectorStorage:
     Returns:
         A vector storage provider.
     """
-    from common.config import get_settings
+    from src.common.config import get_settings
     settings = get_settings()
     
     # Default to MongoDB Vector
@@ -61,7 +61,7 @@ def get_cache_storage(**kwargs) -> CacheStorage:
     Returns:
         A cache storage provider.
     """
-    from common.config import get_settings
+    from src.common.config import get_settings
     settings = get_settings()
     
     # Default to Redis
@@ -78,7 +78,7 @@ def get_message_queue(**kwargs) -> MessageQueue:
     Returns:
         A message queue provider.
     """
-    from common.config import get_settings
+    from src.common.config import get_settings
     settings = get_settings()
     
     # Default to Redis

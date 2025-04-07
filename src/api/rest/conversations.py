@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from common.auth import get_current_user, User
-from common.config import get_settings
-from services.message_storage import MessageStorageService
+from src.common.auth import get_current_user, User
+from src.common.config import get_settings
+from src.services.message_storage import MessageStorageService
 
 # Setup logging
 logger = logging.getLogger(__name__)

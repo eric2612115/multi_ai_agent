@@ -12,7 +12,7 @@ from dotenv import load_dotenv, find_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from common.exceptions import ConfigError
+from src.common.exceptions import ConfigError
 
 # 设置日志
 logger = logging.getLogger(__name__)
@@ -80,6 +80,21 @@ class AISettings(BaseSettings):
         env="GEMINI_EMBEDDING_MODEL", 
         description="Gemini 嵌入模型名称"
     )
+    gemini_primary_model: str = Field(
+        default="gemini-2.0-flash-thinking-exp-01-21",
+        env="GEMINI_PRIMARY_MODEL",
+        description="Gemini 主要模型名称"
+    )
+    gemini_enhanced_model: str = Field(
+        default="gemini-2.5-pro-exp-03-25",
+        env="GEMINI_ENHANCED_MODEL",
+        description="Gemini 增强模型名称"
+    )
+    gemini_image_model: str = Field(
+        default="gemini-2.0-flash-exp-image-generation",
+        env="GEMINI_IMAGE_MODEL",
+        description="Gemini 图像模型名称"
+    )
     
     # Claude 配置
     claude_api_key: str = Field(
@@ -97,6 +112,16 @@ class AISettings(BaseSettings):
         env="CLAUDE_API_VERSION", 
         description="Claude API 版本"
     )
+    anthropic_api_key: str = Field(
+        default="",
+        env="ANTHROPIC_API_KEY",
+        description="Anthropic API 密钥（兼容性参数）"
+    )
+    anthropic_model: str = Field(
+        default="claude-3-7-sonnet-20250219",
+        env="ANTHROPIC_MODEL",
+        description="Anthropic 模型名称"
+    )
     
     # Firecrawl 配置
     firecrawl_api_key: str = Field(
@@ -109,10 +134,16 @@ class AISettings(BaseSettings):
         env="FIRECRAWL_API_URL", 
         description="Firecrawl API URL"
     )
+    
+    # 兼容性字段，避免 Pydantic 验证错误
+    default_ai_service: Optional[str] = None
+    serp_api_key: Optional[str] = None
 
-    class Config:
-        env_prefix = "AI_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "AI_",
+        "env_file": ".env",
+        "extra": "allow"  # Allow extra fields to avoid validation errors
+    }
 
 
 class DatabaseSettings(BaseSettings):
@@ -136,7 +167,7 @@ class DatabaseSettings(BaseSettings):
     enable_vector_search: bool = Field(
         default=False, 
         env="ENABLE_VECTOR_SEARCH", 
-        description="是否启用向量搜索（需要 MongoDB Atlas）"
+        description="是否启用向量搜索（已不再需要手动设置，系统会自动检测 MongoDB Atlas 是否支持向量搜索）"
     )
     vector_search_index: str = Field(
         default="nodes_vector_index", 
@@ -149,9 +180,11 @@ class DatabaseSettings(BaseSettings):
         description="节点相似性阈值（0-1）"
     )
 
-    class Config:
-        env_prefix = "DB_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "DB_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class SecuritySettings(BaseSettings):
@@ -173,9 +206,11 @@ class SecuritySettings(BaseSettings):
         description="访问令牌过期时间（分钟）"
     )
 
-    class Config:
-        env_prefix = "SECURITY_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "SECURITY_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class KnowledgeForestSettings(BaseSettings):
@@ -207,9 +242,11 @@ class KnowledgeForestSettings(BaseSettings):
         description="启用自动知识分类"
     )
 
-    class Config:
-        env_prefix = "FOREST_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "FOREST_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class ReflectionSettings(BaseSettings):
@@ -241,9 +278,11 @@ class ReflectionSettings(BaseSettings):
         description="启动反思循环所需的最小节点数"
     )
 
-    class Config:
-        env_prefix = "REFLECTION_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "REFLECTION_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class LifecycleSettings(BaseSettings):
@@ -275,9 +314,11 @@ class LifecycleSettings(BaseSettings):
         description="节点复活阈值（高于该重要性分数时可能复活）"
     )
 
-    class Config:
-        env_prefix = "LIFECYCLE_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "LIFECYCLE_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class AbstractionSettings(BaseSettings):
@@ -304,9 +345,11 @@ class AbstractionSettings(BaseSettings):
         description="启用自动抽象生成"
     )
 
-    class Config:
-        env_prefix = "ABSTRACTION_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "ABSTRACTION_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class EnergySettings(BaseSettings):
@@ -333,9 +376,11 @@ class EnergySettings(BaseSettings):
         description="自然能量衰减率"
     )
 
-    class Config:
-        env_prefix = "ENERGY_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "ENERGY_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class BalanceSettings(BaseSettings):
@@ -366,10 +411,17 @@ class BalanceSettings(BaseSettings):
         env="MAX_TOPIC_DISTRIBUTION_ADJUSTMENT", 
         description="主题分布调整最大幅度"
     )
+    target_topic_ratio: float = Field(
+        default=0.2,
+        env="TARGET_TOPIC_RATIO",
+        description="目标主题比例"
+    )
 
-    class Config:
-        env_prefix = "BALANCE_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "BALANCE_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class EvaluationSettings(BaseSettings):
@@ -406,9 +458,11 @@ class EvaluationSettings(BaseSettings):
         description="最大并发优化实验数量"
     )
     
-    class Config:
-        env_prefix = "EVALUATION_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "EVALUATION_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class ApiSettings(BaseSettings):
@@ -430,9 +484,11 @@ class ApiSettings(BaseSettings):
         description="启用 Model Context Protocol"
     )
 
-    class Config:
-        env_prefix = "API_"
-        env_file = ".env"
+    model_config = {
+        "env_prefix": "API_",
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 class Settings(BaseSettings):
@@ -453,6 +509,11 @@ class Settings(BaseSettings):
         env="ENVIRONMENT", 
         description="运行环境 (development/production)"
     )
+    log_level: str = Field(
+        default="INFO",
+        env="LOG_LEVEL",
+        description="日志级别 (DEBUG/INFO/WARNING/ERROR/CRITICAL)"
+    )
     
     ai: AISettings = AISettings()
     db: DatabaseSettings = DatabaseSettings()
@@ -468,9 +529,11 @@ class Settings(BaseSettings):
     balance: BalanceSettings = BalanceSettings()
     evaluation: EvaluationSettings = EvaluationSettings()
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "allow"
+    }
         
     def to_dict(self) -> Dict[str, Any]:
         """将配置转换为字典（移除敏感信息）。"""
@@ -478,21 +541,22 @@ class Settings(BaseSettings):
             "app_name": self.app_name,
             "version": self.version,
             "environment": self.environment,
-            "ai": {k: v for k, v in self.ai.dict().items() 
+            "log_level": self.log_level,
+            "ai": {k: v for k, v in self.ai.model_dump().items() 
                   if not k.endswith('_api_key')},  # 不包含敏感信息
-            "db": {k: v for k, v in self.db.dict().items() 
+            "db": {k: v for k, v in self.db.model_dump().items() 
                   if not k.endswith('_uri')},  # 不包含敏感信息
-            "security": {k: v for k, v in self.security.dict().items() 
+            "security": {k: v for k, v in self.security.model_dump().items() 
                         if k != 'jwt_secret_key'},  # 不包含敏感信息
-            "knowledge_forest": self.knowledge_forest.dict(),
-            "api": self.api.dict(),
+            "knowledge_forest": self.knowledge_forest.model_dump(),
+            "api": self.api.model_dump(),
             # 自我进化系统组件
-            "reflection": self.reflection.dict(),
-            "lifecycle": self.lifecycle.dict(),
-            "abstraction": self.abstraction.dict(),
-            "energy": self.energy.dict(),
-            "balance": self.balance.dict(),
-            "evaluation": self.evaluation.dict()
+            "reflection": self.reflection.model_dump(),
+            "lifecycle": self.lifecycle.model_dump(),
+            "abstraction": self.abstraction.model_dump(),
+            "energy": self.energy.model_dump(),
+            "balance": self.balance.model_dump(),
+            "evaluation": self.evaluation.model_dump()
         }
 
 

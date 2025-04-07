@@ -11,10 +11,10 @@ from typing import Dict, List, Optional, Union, Any, Callable
 
 from firecrawl import FirecrawlApp
 
-from ai.base import WebExtractionModel, SearchModel
-from ai.factory import register_ai_model
-from common.config import get_settings
-from common.exceptions import AIServiceUnavailableError, AIRequestError
+from src.ai.base import WebExtractionModel, SearchModel
+from src.ai.factory import register_ai_model
+from src.common.config import get_settings
+from src.common.exceptions import AIServiceUnavailableError, AIRequestError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

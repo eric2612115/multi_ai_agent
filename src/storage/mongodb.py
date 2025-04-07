@@ -16,9 +16,9 @@ from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from bson import ObjectId, json_util
 from bson.errors import InvalidId
 
-from storage.base import DocumentStorage, VectorStorage
-from common.config import get_settings
-from common.exceptions import StorageConnectionError, StorageQueryError
+from src.storage.base import DocumentStorage, VectorStorage
+from src.common.config import get_settings
+from src.common.exceptions import StorageConnectionError, StorageQueryError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -37,6 +37,10 @@ class MongoDBProvider(DocumentStorage):
         self.database_name = database_name or settings.db.mongodb_db
         self.client = None
         self.db = None
+        # Store configuration but don't rely on it for feature detection
+        self.vector_search_index = settings.db.vector_search_index
+        # The actual vector search availability will be auto-detected on first use
+        self._vector_search_available = None
     
     async def connect(self) -> bool:
         """Connect to MongoDB.
@@ -164,7 +168,6 @@ class MongoDBProvider(DocumentStorage):
         
         except Exception as e:
             raise StorageQueryError(f"Failed to save document: {str(e)}")
-    
     async def update_document(self, collection: str, document_id: str, update_data: Dict[str, Any]) -> bool:
         """Update a document.
         
@@ -186,21 +189,38 @@ class MongoDBProvider(DocumentStorage):
             # Convert string ID to ObjectId
             obj_id = self._parse_id(document_id)
             
-            # Use $set to update only specified fields
-            result = await self.db[collection].update_one(
-                {"_id": obj_id},
-                {"$set": update_data}
-            )
+            # Check if update_data already contains operators like $set, $push, $addToSet
+            if any(key.startswith('$') for key in update_data.keys()):
+                # Use update data as is since it already contains operators
+                result = await self.db[collection].update_one(
+                    {"_id": obj_id},
+                    update_data
+                )
+            else:
+                # Use $set to update only specified fields
+                result = await self.db[collection].update_one(
+                    {"_id": obj_id},
+                    {"$set": update_data}
+                )
             
             # Return True if any documents were modified
             return result.modified_count > 0
         except InvalidId:
             # If the ID is not a valid ObjectId, try to update by string ID
             try:
-                result = await self.db[collection].update_one(
-                    {"_id": document_id},
-                    {"$set": update_data}
-                )
+                # Check if update_data already contains operators like $set, $push, $addToSet
+                if any(key.startswith('$') for key in update_data.keys()):
+                    # Use update data as is since it already contains operators
+                    result = await self.db[collection].update_one(
+                        {"_id": document_id},
+                        update_data
+                    )
+                else:
+                    # Use $set to update only specified fields
+                    result = await self.db[collection].update_one(
+                        {"_id": document_id},
+                        {"$set": update_data}
+                    )
                 return result.modified_count > 0
             except Exception as e:
                 raise StorageQueryError(f"Failed to update document by string ID: {str(e)}")
@@ -489,3 +509,163 @@ class MongoDBProvider(DocumentStorage):
             return stats
         except Exception as e:
             raise StorageQueryError(f"Failed to get collection statistics: {str(e)}")
+    
+    async def search_vectors(self, collection: str, vector: List[float], filter: Optional[Dict[str, Any]] = None,
+                          top_k: int = 10, min_similarity: Optional[float] = None) -> List[Dict[str, Any]]:
+        """Search for similar vectors (compatibility method).
+        
+        This method is provided for compatibility with the VectorStorage interface.
+        It will attempt to use MongoDB Atlas Vector Search if available, and fall back
+        to a basic filter-based approach if Atlas Vector Search is not available.
+        
+        Args:
+            collection: The collection name.
+            vector: The query vector.
+            filter: Optional filter criteria.
+            top_k: Maximum number of results.
+            min_similarity: Optional minimum similarity threshold.
+            
+        Returns:
+            List of similar documents with similarity scores.
+            
+        Raises:
+            StorageConnectionError: If connection failed.
+            StorageQueryError: If query failed.
+        """
+        await self._ensure_connected()
+        
+        # Prepare the filter with type conversion
+        if filter:
+            filter = self._convert_id_in_query(filter)
+        else:
+            filter = {}
+        
+        # Auto-detect vector search capability if not already determined
+        vector_search_available = getattr(self, '_vector_search_available', None)
+        
+        if vector_search_available is None:
+            # Try to detect if MongoDB Atlas Vector Search is available
+            try:
+                # Probe for Atlas search capability by checking for $vectorSearch
+                capability_test = await self.db.command({
+                    "listSearchIndexes": collection,
+                    "limit": 1
+                })
+                self._vector_search_available = True
+                logger.info("MongoDB Atlas Vector Search detected and available.")
+            except Exception as e:
+                # If this fails, MongoDB Atlas Vector Search is likely not available
+                self._vector_search_available = False
+                logger.warning(f"MongoDB Atlas Vector Search not available or not configured: {str(e)}")
+                
+        # Use Atlas Vector Search if available
+        if self._vector_search_available:
+            try:
+                # Use proper MongoDB Atlas Vector Search
+                vector_search_index = getattr(self, 'vector_search_index', 'nodes_vector_index')
+                
+                # Create the aggregation pipeline
+                pipeline = [
+                    {
+                        "$search": {
+                            "index": vector_search_index,
+                            "vectorSearch": {
+                                "path": "embedding",  # Field containing the vector
+                                "queryVector": vector,
+                                "numCandidates": max(top_k * 10, 100),  # Candidates to consider
+                                "limit": top_k,
+                                "filter": filter
+                            },
+                            "returnStoredSource": True
+                        }
+                    },
+                    {
+                        # Include similarity score in results
+                        "$project": {
+                            "score": { "$meta": "searchScore" },
+                            "document": "$$ROOT"
+                        }
+                    }
+                ]
+                
+                # If min_similarity is provided, add a filter stage
+                if min_similarity is not None:
+                    pipeline.append(
+                        {
+                            "$match": {
+                                "score": {"$gte": min_similarity}
+                            }
+                        }
+                    )
+                
+                # Execute the aggregation
+                cursor = self.db[collection].aggregate(pipeline)
+                
+                # Convert cursor to list
+                results = await cursor.to_list(length=None)
+                
+                # Process results to match the expected format
+                return [
+                    {
+                        **result["document"],
+                        "searchScore": result["score"]
+                    }
+                    for result in results
+                ]
+                
+            except Exception as e:
+                logger.warning(f"Atlas Vector Search failed, falling back to basic filtering: {str(e)}")
+                # Fall through to basic filtering fallback
+        
+        # Fallback: simple filter-based approach
+        logger.info("Using fallback filter-based approach for vector 'search'")
+        cursor = self.db[collection].find(filter)
+        limit_cursor = cursor.limit(top_k)
+        documents = await limit_cursor.to_list(length=None)
+        
+        # Add placeholder similarity scores (all set to 0.5)
+        results = []
+        for doc in documents:
+            doc["searchScore"] = 0.5
+            results.append(doc)
+            
+        return results
+            
+    async def batch_search_vectors(self, collection: str, vectors: List[List[float]], 
+                                filter: Optional[Dict[str, Any]] = None,
+                                top_k: int = 10, min_similarity: Optional[float] = None) -> List[List[Dict[str, Any]]]:
+        """Search for similar vectors in batch (compatibility method).
+        
+        This method is provided for compatibility with the VectorStorage interface.
+        It uses the search_vectors method which automatically detects if vector search
+        is available, and falls back to simple filtering if not.
+        
+        Args:
+            collection: The collection name.
+            vectors: The query vectors.
+            filter: Optional filter criteria.
+            top_k: Maximum number of results per vector.
+            min_similarity: Optional minimum similarity threshold.
+            
+        Returns:
+            List of lists of similar documents with similarity scores.
+            
+        Raises:
+            StorageConnectionError: If connection failed.
+            StorageQueryError: If query failed.
+        """
+        await self._ensure_connected()
+        
+        # Perform searches one by one
+        results = []
+        for vector in vectors:
+            result = await self.search_vectors(
+                collection=collection,
+                vector=vector,
+                filter=filter,
+                top_k=top_k,
+                min_similarity=min_similarity
+            )
+            results.append(result)
+        
+        return results

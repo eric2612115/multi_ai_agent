@@ -8,7 +8,7 @@ and knowledge management.
 __version__ = "2.0.0"
 
 # Convenience imports for the most commonly used functionality
-from ai.factory import (
+from src.ai.factory import (
     get_ai_model,
     get_text_generation_model,
     get_embedding_model, 
@@ -16,21 +16,21 @@ from ai.factory import (
     get_web_extraction_model
 )
 
-from forest import (
+from src.forest import (
     init_knowledge_forest,
     get_knowledge_extractor,
     get_knowledge_processor,
     get_graph_manager
 )
 
-from storage import (
+from src.storage import (
     get_document_storage,
     get_vector_storage,
     get_cache_storage,
     get_message_queue
 )
 
-from common.config import get_settings
+from src.common.config import get_settings
 
 # Initialize logging
 import logging

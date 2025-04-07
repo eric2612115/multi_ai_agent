@@ -9,19 +9,24 @@ import json
 import sys
 from typing import Dict, List, Any, Optional
 import argparse
-
-# Import MCP tool registration
-from api.mcp.knowledge_tools import register_knowledge_tools
+import os
 
 # Import common functionality
-from common.config import get_settings
+from src.common.config import get_settings
+
+# 预先初始化AI模型，确保它们正确加载
+import src.ai.gemini
+import src.ai.claude
+
+# Import MCP tool registration
+from src.api.mcp.knowledge_tools import register_knowledge_tools
 
 # Get settings
 settings = get_settings()
 
 # Setup logging
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)

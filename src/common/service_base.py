@@ -6,7 +6,7 @@ such as storage provider initialization and dependency injection.
 import logging
 from typing import Optional, Dict, Any, Type
 
-from storage.mongodb import MongoDBProvider
+from src.storage.mongodb import MongoDBProvider
 
 logger = logging.getLogger(__name__)
 

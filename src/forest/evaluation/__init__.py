@@ -4,6 +4,6 @@ This package provides mechanisms for evaluating system health, identifying optim
 opportunities, and making automatic improvements to system performance and knowledge quality.
 """
 
-from forest.evaluation.evaluator import SystemEvaluator
+from src.forest.evaluation.evaluator import SystemEvaluator
 
 __all__ = ["SystemEvaluator"]

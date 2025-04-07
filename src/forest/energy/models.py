@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, validator
 
-from forest.models import StringId
+from src.forest.models import StringId
 
 
 class EnergyPoolType(str, Enum):

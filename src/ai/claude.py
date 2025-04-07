@@ -13,10 +13,10 @@ from typing import Dict, List, Optional, Union, Any
 import httpx
 from anthropic import Anthropic, AsyncAnthropic
 
-from ai.base import TextGenerationModel
-from ai.factory import register_ai_model
-from common.config import get_settings
-from common.exceptions import AIServiceUnavailableError, AIRequestError, AIRateLimitError
+from src.ai.base import TextGenerationModel
+from src.ai.factory import register_ai_model
+from src.common.config import get_settings
+from src.common.exceptions import AIServiceUnavailableError, AIRequestError, AIRateLimitError
 
 settings = get_settings()
 
@@ -280,7 +280,7 @@ class ClaudeModel(TextGenerationModel):
         """
         # Lazy load Gemini fallback
         if self._gemini_fallback is None:
-            from ai.factory import get_ai_model
+            from src.ai.factory import get_ai_model
             try:
                 self._gemini_fallback = get_ai_model("gemini")
                 print("Using Gemini as fallback for Claude")

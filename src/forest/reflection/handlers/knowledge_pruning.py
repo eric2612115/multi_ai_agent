@@ -6,13 +6,13 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
-from forest.models import (
+from src.forest.models import (
     ReflectionTask, NodeStatus
 )
-from forest.reflection.handlers.base import TaskHandler
-from common.exceptions import ExecutionError
-from common.decorators import handle_errors
-from common.config import get_settings
+from src.forest.reflection.handlers.base import TaskHandler
+from src.common.exceptions import ExecutionError
+from src.common.decorators import handle_errors
+from src.common.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class KnowledgePruningHandler(TaskHandler):
         """Get the task type this handler supports."""
         return "knowledge_pruning"
     
-    @handle_errors(error_type=ExecutionError)
+    @handle_errors(error_class=ExecutionError)
     async def handle(self, user_id: str, task: ReflectionTask) -> Dict[str, Any]:
         """Handle knowledge pruning task."""
         result = {
@@ -106,7 +106,7 @@ class KnowledgePruningHandler(TaskHandler):
                                   threshold: float) -> List[Dict[str, Any]]:
         """Find nodes that are candidates for pruning."""
         # Find nodes with low importance
-        min_age = timedelta(days=settings.knowledge_lifecycle.node_min_age_days)
+        min_age = timedelta(days=settings.lifecycle.node_min_age_days)
         min_date = datetime.utcnow() - min_age
         
         candidates = await self.storage.find_documents(

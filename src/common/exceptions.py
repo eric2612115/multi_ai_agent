@@ -129,6 +129,16 @@ class AnalysisError(ReflectionError):
     pass
 
 
+class ObservationError(ReflectionError):
+    """系统观察错误。"""
+    pass
+
+
+class PlannerError(ReflectionError):
+    """反思规划错误。"""
+    pass
+
+
 class ExecutionError(ReflectionError):
     """任务执行错误。"""
     pass
@@ -149,6 +159,11 @@ class LifecycleError(KnowledgeForestError):
 # 抽象层级管理相关错误
 class AbstractionError(KnowledgeForestError):
     """抽象层级管理错误。"""
+    pass
+
+
+class HierarchyError(AbstractionError):
+    """层级结构管理错误。"""
     pass
 
 

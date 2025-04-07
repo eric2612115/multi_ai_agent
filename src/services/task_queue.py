@@ -125,14 +125,15 @@ class TaskQueue:
                 if str(e).find("missing 1 required positional argument: 'task_id'") != -1:
                     # The task requires a task_id parameter but it wasn't passed
                     logger.info(f"Attempting to fix missing task_id parameter for task {task_id}")
-                    kwargs["task_id"] = task_id
+                    # Pass task_id as first positional argument
+                    new_args = (task_id,) + args
                     # Create a new wrapper with fixed arguments
                     async def fixed_task_wrapper():
                         async with self._semaphore:
                             try:
                                 self._tasks[task_id]["status"] = "running"
                                 self._tasks[task_id]["started_at"] = datetime.utcnow()
-                                result = await func(*args, **kwargs)
+                                result = await func(*new_args, **kwargs)
                                 self._tasks[task_id]["status"] = "completed"
                                 self._tasks[task_id]["completed_at"] = datetime.utcnow()
                                 self._tasks[task_id]["result"] = result

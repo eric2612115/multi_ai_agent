@@ -6,12 +6,12 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Type
 
-from forest.models import ReflectionTask
-from storage.mongodb import MongoDBProvider
-from ai.base import TextGenerationModel
-from forest.graph import KnowledgeGraphManager
-from common.exceptions import ExecutionError
-from common.decorators import handle_errors
+from src.forest.models import ReflectionTask
+from src.storage.mongodb import MongoDBProvider
+from src.ai.base import TextGenerationModel
+from src.forest.graph import KnowledgeGraphManager
+from src.common.exceptions import ExecutionError
+from src.common.decorators import handle_errors
 
 logger = logging.getLogger(__name__)
 

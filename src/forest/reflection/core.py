@@ -9,22 +9,22 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union
 
-from forest.models import (
+from src.forest.models import (
     ReflectionCycle, ReflectionStage, SystemStateSnapshot, 
     ReflectionTask, StrategyAdjustment, KnowledgeGap,
     StringId
 )
-from forest.reflection.observer import SystemObserver
-from forest.reflection.analyzer import KnowledgeAnalyzer
-from forest.reflection.planner import ReflectionPlanner
-from forest.reflection.task_executor import TaskExecutor
-from forest.reflection.gap_finder import KnowledgeGapFinder
-from forest.energy.manager_combined import EnergyManager
-from forest.lifecycle.manager_combined import LifecycleManager
-from forest.abstraction.generator_combined import AbstractionGenerator
-from storage.mongodb import MongoDBProvider
-from common.config import get_settings
-from common.exceptions import ReflectionError
+from src.forest.reflection.observer import SystemObserver
+from src.forest.reflection.analyzer import KnowledgeAnalyzer
+from src.forest.reflection.planner import ReflectionPlanner
+from src.forest.reflection.task_executor import TaskExecutor
+from src.forest.reflection.gap_finder import KnowledgeGapFinder
+from src.forest.energy.manager_combined import EnergyManager
+from src.forest.lifecycle.manager_combined import LifecycleManager
+from src.forest.abstraction.generator_combined import AbstractionGenerator
+from src.storage.mongodb import MongoDBProvider
+from src.common.config import get_settings
+from src.common.exceptions import ReflectionError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

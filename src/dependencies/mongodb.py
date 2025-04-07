@@ -3,7 +3,7 @@ MongoDB provider dependency for FastAPI routes
 """
 from typing import Optional
 from fastapi import Depends
-from storage.mongodb import MongoDBProvider
+from src.storage.mongodb import MongoDBProvider
 
 # Global MongoDB provider instance
 _mongodb_provider: Optional[MongoDBProvider] = None

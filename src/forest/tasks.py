@@ -10,14 +10,14 @@ from typing import Dict, List, Optional, Any, Union, Callable
 from datetime import datetime
 from functools import wraps
 
-from forest.extraction_service import KnowledgeExtractionService
-from forest.placement import KnowledgePlacementService
-from forest.graph import KnowledgeGraphManager
-from forest.models import KnowledgeExtractionResult, PlacementDecision, GraphUpdateResult
-from services.event_bus import EventBus
-from services.task_queue import TaskQueue
-from common.config import get_settings
-from common.exceptions import TaskHandlerError
+from src.forest.extraction_service import KnowledgeExtractionService
+from src.forest.placement import KnowledgePlacementService
+from src.forest.graph import KnowledgeGraphManager
+from src.forest.models import KnowledgeExtractionResult, PlacementDecision, GraphUpdateResult
+from src.services.event_bus import EventBus
+from src.services.task_queue import TaskQueue
+from src.common.config import get_settings
+from src.common.exceptions import TaskHandlerError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ class KnowledgeForestTaskHandler:
             # Create a unique task ID
             task_id = f"knowledge_extraction_{datetime.utcnow().timestamp()}"
 
-            # Schedule the task - 確保參數順序正確
+            # Add the task, make sure method will still work even if task_id is passed as kwarg
             task = await self.task_queue.add_task(
                 self._execute_knowledge_pipeline,
                 message_data=message_data,
@@ -217,12 +217,12 @@ class KnowledgeForestTaskHandler:
             logger.error(f"Failed to get task status: {str(e)}")
             raise TaskHandlerError(f"Failed to get task status: {str(e)}")
 
-    async def _execute_knowledge_pipeline(self, message_data: Dict[str, Any], task_id: str) -> Dict[str, Any]:
+    async def _execute_knowledge_pipeline(self, message_data: Dict[str, Any], task_id: str = None) -> Dict[str, Any]:
         """Execute the full knowledge pipeline.
         
         Args:
-            task_id: The task ID.
             message_data: The message data.
+            task_id: The task ID (optional, will be passed by TaskQueue).
             
         Returns:
             Result of the pipeline execution.

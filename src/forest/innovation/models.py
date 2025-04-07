@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field, computed_field
 
-from forest.models import StringId, SynthesisType, AbstractionLevel
+from src.forest.models import StringId, SynthesisType, AbstractionLevel
 
 
 class InnovationCriterion(str, Enum):

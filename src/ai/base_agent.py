@@ -7,8 +7,8 @@ import uuid
 import os
 from abc import ABC, abstractmethod
 
-from services.event_bus import EventBus
-from forest.extraction_service import KnowledgeExtractionService
+from src.services.event_bus import EventBus
+from src.forest.extraction_service import KnowledgeExtractionService
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class LLMProvider(ABC):
         pass
     
     @abstractmethod
-    def generate_response(self, message: str, conversation_history: List[Dict[str, str]] = None) -> str:
+    async def generate_response(self, message: str, conversation_history: List[Dict[str, str]] = None) -> str:
         """Generate a response.
         
         Args:
@@ -50,7 +50,7 @@ class LLMProvider(ABC):
         pass
     
     @abstractmethod
-    def generate_text(self, prompt: str, system_prompt: str = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: str = None) -> str:
         """Generate text using a simple prompt.
         
         Args:
@@ -120,6 +120,51 @@ class BaseAgent:
         # Even if not all providers initialized successfully, if at least one did, we can proceed
         self.is_llm_initialized = success
         return success
+    
+    def get_filtered_provider(self, capability_filter=None, priority_filter=None):
+        """Get an LLM provider that matches the specified filters.
+        
+        Args:
+            capability_filter: A function that takes a provider and returns True if it has the required capabilities.
+            priority_filter: A function that takes a provider and returns True if it meets priority requirements.
+            
+        Returns:
+            An LLM provider that matches the filters, or None if no matching provider is found.
+        """
+        # Ensure providers are initialized
+        if not self.is_llm_initialized:
+            if not self.initialize_llm_providers():
+                logger.error("Failed to initialize LLM providers")
+                return None
+        
+        # Filter providers by capability and priority
+        matching_providers = []
+        for provider in self.llm_providers:
+            capabilities = provider.get_capabilities()
+            logger.debug(f"Checking provider {provider.model_name} with capabilities: {capabilities}")
+            
+            if capability_filter and not capability_filter(provider):
+                logger.debug(f"Provider {provider.model_name} failed capability filter")
+                continue
+                
+            if priority_filter and not priority_filter(provider):
+                logger.debug(f"Provider {provider.model_name} failed priority filter")
+                continue
+                
+            logger.info(f"Provider {provider.model_name} matched filters and is available")
+            matching_providers.append(provider)
+            
+        # Sort by priority (highest first)
+        matching_providers.sort(key=lambda p: p.priority, reverse=True)
+        
+        # Return the highest priority provider that matches the filters
+        if matching_providers:
+            selected_provider = matching_providers[0]
+            logger.info(f"Selected provider: {selected_provider.model_name} with priority {selected_provider.priority}")
+            return selected_provider
+        else:
+            logger.warning("No matching providers found")
+            return None
     
     async def process_message(self, message: str, use_enhanced_model: bool = False) -> str:
         """Process a user message and generate a response.

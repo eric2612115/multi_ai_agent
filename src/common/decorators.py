@@ -10,7 +10,7 @@ import traceback
 from typing import Callable, Any, Optional, Type, TypeVar, cast, Dict, Union
 import asyncio
 
-from common.exceptions import BaseError
+from src.common.exceptions import BaseError
 
 logger = logging.getLogger(__name__)
 

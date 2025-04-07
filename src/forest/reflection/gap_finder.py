@@ -7,12 +7,12 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Set
 
-from forest.models import KnowledgeGap, GapType, StringId
-from storage.mongodb import MongoDBProvider
-from ai.base import TextGenerationModel
-from ai.factory import get_text_generation_model
-from common.config import get_settings
-from common.exceptions import GapFinderError
+from src.forest.models import KnowledgeGap, GapType, StringId
+from src.storage.mongodb import MongoDBProvider
+from src.ai.base import TextGenerationModel
+from src.ai.factory import get_text_generation_model
+from src.common.config import get_settings
+from src.common.exceptions import GapFinderError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

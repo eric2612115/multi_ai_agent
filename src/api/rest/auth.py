@@ -13,7 +13,7 @@ from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
-from common.config import get_settings
+from src.common.config import get_settings
 
 # Get settings
 settings = get_settings()

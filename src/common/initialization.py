@@ -9,9 +9,9 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from bson import ObjectId
 
-from forest.models import Node, Edge, KnowledgeExtractionResult
-from forest.graph import KnowledgeGraphManager
-from storage.mongodb import MongoDBProvider
+from src.forest.models import Node, Edge, KnowledgeExtractionResult
+from src.forest.graph import KnowledgeGraphManager
+from src.storage.mongodb import MongoDBProvider
 
 # Setup logging
 logger = logging.getLogger(__name__)

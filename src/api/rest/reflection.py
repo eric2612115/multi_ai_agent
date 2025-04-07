@@ -7,9 +7,9 @@ import logging
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, status
 
-from forest.reflection.core import ReflectionSystem
-from forest.models import ReflectionCycle, StringId
-from api.rest.auth import get_current_user
+from src.forest.reflection.core import ReflectionSystem
+from src.forest.models import ReflectionCycle, StringId
+from src.api.rest.auth import get_current_user
 
 router = APIRouter(prefix="/api/reflection", tags=["reflection"])
 logger = logging.getLogger(__name__)
@@ -173,7 +173,7 @@ async def get_knowledge_gaps(
     """
     try:
         # This requires accessing the database directly
-        from storage.mongodb import MongoDBProvider
+        from src.storage.mongodb import MongoDBProvider
         storage = MongoDBProvider()
         
         # Build query

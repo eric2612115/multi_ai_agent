@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
-from common.config import get_settings
+from src.common.config import get_settings
 
 # Get settings
 settings = get_settings()

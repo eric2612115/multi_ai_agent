@@ -6,9 +6,9 @@ import logging
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime
 
-from forest.extraction import KnowledgeExtractor
-from forest.models import KnowledgeExtractionResult
-from common.exceptions import ExtractionError
+from src.forest.extraction import KnowledgeExtractor
+from src.forest.models import KnowledgeExtractionResult
+from src.common.exceptions import ExtractionError
 
 logger = logging.getLogger(__name__)
 
@@ -59,22 +59,5 @@ class KnowledgeExtractionService:
             logger.error(f"Knowledge extraction failed: {str(e)}")
             raise ExtractionError(f"Failed to extract knowledge: {str(e)}")
 
-# Add the is_valid method as an extension to KnowledgeExtractionResult
-def is_valid(self) -> bool:
-    """Check if an extraction result is valid and useful.
-    
-    Returns:
-        True if valid, False otherwise.
-    """
-    # Check if embedding is present
-    if not self.embedding or len(self.embedding) == 0:
-        return False
-        
-    # Check if we have entities or a summary
-    if (not self.entities or len(self.entities) == 0) and not self.summary:
-        return False
-        
-    return True
-
-# Add the method to the class
-KnowledgeExtractionResult.is_valid = is_valid
+# Note: The is_valid method is now directly defined in the KnowledgeExtractionResult class
+# in src/forest/models.py

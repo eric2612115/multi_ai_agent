@@ -4,7 +4,7 @@ This package provides mechanisms for the system to autonomously identify knowled
 gaps and proactively acquire new knowledge from external sources.
 """
 
-from forest.acquisition.manager import AcquisitionManager
-from forest.acquisition.perception import PerceptionSystem
+from src.forest.acquisition.manager import AcquisitionManager
+from src.forest.acquisition.perception import PerceptionSystem
 
 __all__ = ["AcquisitionManager", "PerceptionSystem"]

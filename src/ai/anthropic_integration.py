@@ -9,7 +9,7 @@ import time
 from typing import Dict, List, Optional, Any, Union
 import anthropic
 
-from ai.base_agent import LLMProvider
+from src.ai.base_agent import LLMProvider
 
 # Setup logging
 logger = logging.getLogger(__name__)

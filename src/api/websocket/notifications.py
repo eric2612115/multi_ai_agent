@@ -10,8 +10,8 @@ from typing import Dict, List, Optional, Any, Union, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from datetime import datetime
 
-from services.event_bus import EventBus
-from common.auth import get_current_user, User, get_user_from_token
+from src.services.event_bus import EventBus
+from src.common.auth import get_current_user, User, get_user_from_token
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -284,7 +284,7 @@ async def websocket_endpoint(websocket: WebSocket):
     
     try:
         # Initialize user if needed
-        from common.initialization import initialize_new_user
+        from src.common.initialization import initialize_new_user
         await initialize_new_user(user_id)
         
         # Connect the WebSocket

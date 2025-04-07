@@ -2,15 +2,15 @@
 
 This package contains handlers for different types of reflection tasks.
 """
-from forest.reflection.handlers.base import TaskHandler
-from forest.reflection.handlers.topic_expansion import TopicExpansionHandler
-from forest.reflection.handlers.abstraction_generation import AbstractionGenerationHandler
-from forest.reflection.handlers.knowledge_pruning import KnowledgePruningHandler
-from forest.reflection.handlers.relation_discovery import RelationDiscoveryHandler
-from forest.reflection.handlers.content_verification import ContentVerificationHandler
-from forest.reflection.handlers.importance_redistribution import ImportanceRedistributionHandler
-from forest.reflection.handlers.lifecycle_management import LifecycleManagementHandler
-from forest.reflection.handlers.strategy_adaptation import StrategyAdaptationHandler
+from src.forest.reflection.handlers.base import TaskHandler
+from src.forest.reflection.handlers.topic_expansion import TopicExpansionHandler
+from src.forest.reflection.handlers.abstraction_generation import AbstractionGenerationHandler
+from src.forest.reflection.handlers.knowledge_pruning import KnowledgePruningHandler
+from src.forest.reflection.handlers.relation_discovery import RelationDiscoveryHandler
+from src.forest.reflection.handlers.content_verification import ContentVerificationHandler
+from src.forest.reflection.handlers.importance_redistribution import ImportanceRedistributionHandler
+from src.forest.reflection.handlers.lifecycle_management import LifecycleManagementHandler
+from src.forest.reflection.handlers.strategy_adaptation import StrategyAdaptationHandler
 
 # Registry of all handlers
 TASK_HANDLERS = [

@@ -8,16 +8,16 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Set, Tuple, Callable
 
-from forest.models import (
+from src.forest.models import (
     Node, AbstractionLevel, NodeStatus, AbstractionCluster,
     StringId, RelationshipType
 )
-from storage.mongodb import MongoDBProvider
-from forest.graph import KnowledgeGraphManager
-from ai.base import TextGenerationModel
-from ai.factory import get_text_generation_model
-from common.config import get_settings
-from common.exceptions import AbstractionError
+from src.storage.mongodb import MongoDBProvider
+from src.forest.graph import KnowledgeGraphManager
+from src.ai.base import TextGenerationModel
+from src.ai.factory import get_text_generation_model
+from src.common.config import get_settings
+from src.common.exceptions import AbstractionError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)

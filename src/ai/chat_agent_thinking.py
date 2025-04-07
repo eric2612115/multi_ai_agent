@@ -7,10 +7,10 @@ import asyncio
 import time
 from typing import Dict, List, Any, Optional, Union, Callable
 
-from ai.chat_agent import ChatAgent
-from ai.thinking_context import ThinkingContext
-from api.websocket.chat.message_formatter import MessageFormatter
-from api.websocket.chat.ws_connection_manager import chat_manager
+from src.ai.chat_agent import ChatAgent
+from src.ai.thinking_context import ThinkingContext
+from src.api.websocket.chat.message_formatter import MessageFormatter
+from src.api.websocket.chat.ws_connection_manager import chat_manager
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,14 @@ async def process_thinking_message(self, message: str, **kwargs) -> str:
             結論：[你的最終答案]
             """
             
+            # 獲取文本生成模型
+            # 使用 get_filtered_provider 獲取可用的文本生成模型
+            text_model = self.get_filtered_provider(lambda m: m.get_capabilities().get("text_generation", False))
+            if not text_model:
+                return "我暫時無法處理您的請求，因為沒有可用的文本生成模型。"
+                
             # 向模型詢問初步分析
-            initial_analysis = await self.text_model.generate_text(
+            initial_analysis = await text_model.generate_text(
                 f"請分析以下問題並列出關鍵點：\n{message}",
                 system_prompt=system_prompt
             )
@@ -102,8 +108,8 @@ async def process_thinking_message(self, message: str, **kwargs) -> str:
             4. 得出全面、平衡的結論
             """
             
-            # 生成最終回應
-            response = await self.text_model.generate_text(
+            # 生成最終回應 (使用之前獲取的 text_model)
+            response = await text_model.generate_text(
                 enhanced_prompt,
                 system_prompt=system_prompt,
                 max_tokens=kwargs.get("max_tokens", 1024)

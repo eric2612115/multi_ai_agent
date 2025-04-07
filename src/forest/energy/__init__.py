@@ -1,12 +1,12 @@
 """Energy management system for the knowledge forest."""
 
-from forest.energy.models import (
+from src.forest.energy.models import (
     EnergyAllocation,
     EnergyTransaction,
     EnergyPoolType,
     EnergyTransactionType
 )
-from forest.energy.manager_combined import EnergyManager
+from src.forest.energy.manager_combined import EnergyManager
 
 __all__ = [
     'EnergyAllocation',

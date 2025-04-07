@@ -7,12 +7,12 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from forest.models import (
+from src.forest.models import (
     ReflectionTask, NodeStatus, AbstractionLevel, RelationshipType
 )
-from forest.reflection.handlers.base import TaskHandler
-from common.exceptions import ExecutionError
-from common.decorators import handle_errors
+from src.forest.reflection.handlers.base import TaskHandler
+from src.common.exceptions import ExecutionError
+from src.common.decorators import handle_errors
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class TopicExpansionHandler(TaskHandler):
         """Get the task type this handler supports."""
         return "topic_expansion"
     
-    @handle_errors(error_type=ExecutionError)
+    @handle_errors(error_class=ExecutionError)
     async def handle(self, user_id: str, task: ReflectionTask) -> Dict[str, Any]:
         """Handle topic expansion task.
         

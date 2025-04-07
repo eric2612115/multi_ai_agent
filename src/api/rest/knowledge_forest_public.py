@@ -6,8 +6,8 @@ import logging
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 
-from forest.graph import KnowledgeGraphManager
-from common.initialization import initialize_new_user
+from src.forest.graph import KnowledgeGraphManager
+from src.common.initialization import initialize_new_user
 
 # Setup logging
 logger = logging.getLogger(__name__)
