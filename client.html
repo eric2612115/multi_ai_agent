@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test Client</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; }
+        div { margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        h1, h2 { border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        label { display: inline-block; margin-bottom: 5px; }
+        input[type="text"], input[type="password"] { margin-bottom: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
+        button { padding: 8px 15px; margin-right: 5px; cursor: pointer; border-radius: 3px; border: none; color: white; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #loginButton { background-color: #007bff; }
+        #connectButton { background-color: #28a745; }
+        #disconnectButton { background-color: #ffc107; }
+        #sendButton { background-color: #17a2b8; }
+        #tokenSpan { font-size: 0.8em; color: #666; word-break: break-all; display: block; margin-top: 5px; max-height: 50px; overflow-y: auto; background: #f8f8f8; padding: 5px;}
+        #messages { list-style: none; padding: 0; max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background: #f9f9f9;}
+        #messages li { margin-bottom: 5px; padding: 5px; background-color: #fff; border: 1px solid #ddd; border-radius: 3px;}
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+
+    <div>
+        <h2>Login</h2>
+        <label>Username: <input type="text" id="username" value="johndoe"></label><br>
+        <label>Password: <input type="password" id="password" value="secretpassword"></label><br>
+        <button onclick="login()" id="loginButton">Login</button>
+        <p>Status: <span id="loginStatus">Not logged in</span></p>
+        <p>Token: <span id="tokenSpan"></span></p>
+    </div>
+
+    <hr>
+
+    <div>
+        <h2>WebSocket</h2>
+        <button onclick="connectWs()" id="connectButton" disabled>Connect WebSocket</button>
+        <button onclick="disconnectWs()" id="disconnectButton" disabled>Disconnect</button>
+        <p>WS Status: <span id="wsStatus">Disconnected</span></p>
+        <label>Message: <input type="text" id="messageText" autocomplete="off"/></label>
+        <button onclick="sendMessage()" id="sendButton" disabled>Send</button>
+        <h2>Messages</h2>
+        <ul id='messages'>
+            </ul>
+    </div>
+
+    <script>
+        let ws = null;          // WebSocket 對象
+        let token = null;       // 存儲 JWT Token
+        // 伺服器的地址和端口，請根據實際情況修改
+        // 如果 client.html 和 server 在同一台機器同一個端口，可以用相對路徑
+        const serverBaseUrl = `http://${window.location.hostname}:8000`; // HTTP 基礎 URL
+        const wsServerBaseUrl = `ws://${window.location.hostname}:8000`;   // WebSocket 基礎 URL
+
+        // DOM 元素引用
+        const loginStatusEl = document.getElementById('loginStatus');
+        const tokenSpanEl = document.getElementById('tokenSpan');
+        const connectButtonEl = document.getElementById('connectButton');
+        const disconnectButtonEl = document.getElementById('disconnectButton');
+        const wsStatusEl = document.getElementById('wsStatus');
+        const messagesEl = document.getElementById('messages');
+        const sendButtonEl = document.getElementById('sendButton');
+        const messageTextEl = document.getElementById('messageText');
+
+        // 登入函數
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // 使用 FormData 來發送 x-www-form-urlencoded 數據
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            loginStatusEl.textContent = 'Logging in...';
+            tokenSpanEl.textContent = '';
+            connectButtonEl.disabled = true; // 登入過程中禁用連接按鈕
+            token = null; // 清除舊 token
+
+            try {
+                const response = await fetch(`${serverBaseUrl}/token`, { // 調用登入 API
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) { // 檢查 HTTP 狀態碼
+                    const errorData = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                token = data.access_token; // 獲取 token
+                loginStatusEl.textContent = 'Logged in successfully!';
+                tokenSpanEl.textContent = token; // 顯示 token
+                connectButtonEl.disabled = false; // 啟用連接按鈕
+
+            } catch (error) {
+                console.error('Login failed:', error);
+                loginStatusEl.textContent = `Login Failed: ${error.message}`;
+                token = null; // 登入失敗，清空 token
+                connectButtonEl.disabled = true; // 保持禁用狀態
+            }
+        }
+
+        // 連接 WebSocket 函數
+        function connectWs() {
+            if (!token) { // 必須先登入獲取 token
+                alert("Please login first to get a token.");
+                return;
+            }
+            if (ws && ws.readyState === WebSocket.OPEN) { // 避免重複連接
+                console.log("Already connected.");
+                return;
+            }
+
+            // 重要：將 token 作為查詢參數附加到 WebSocket URL
+            const wsUrl = `${wsServerBaseUrl}/ws?token=${encodeURIComponent(token)}`;
+            console.log("Connecting to:", wsUrl);
+
+            ws = new WebSocket(wsUrl); // 創建 WebSocket 連接
+            wsStatusEl.textContent = 'Connecting...';
+            messagesEl.innerHTML = ''; // 清空舊消息
+            connectButtonEl.disabled = true; // 連接過程中禁用連接按鈕
+            disconnectButtonEl.disabled = true; // 連接過程中禁用斷開按鈕
+            sendButtonEl.disabled = true; // 連接過程中禁用發送按鈕
+
+            // WebSocket 事件處理器
+            ws.onopen = function(event) {
+                wsStatusEl.textContent = 'Connected';
+                sendButtonEl.disabled = false; // 連接成功，啟用發送按鈕
+                disconnectButtonEl.disabled = false; // 連接成功，啟用斷開按鈕
+                console.log("WebSocket connection opened");
+            };
+
+            ws.onmessage = function(event) {
+                const message = event.data;
+                const li = document.createElement('li');
+                li.textContent = `Received: ${message}`;
+                messagesEl.appendChild(li);
+                messagesEl.scrollTop = messagesEl.scrollHeight; // 自動滾動到底部
+                console.log("Message from server: ", message);
+            };
+
+            ws.onerror = function(event) {
+                wsStatusEl.textContent = 'Error occurred';
+                console.error("WebSocket error observed:", event);
+                // 出錯時，重置按鈕狀態（允許重新登入後嘗試連接）
+                sendButtonEl.disabled = true;
+                connectButtonEl.disabled = !token; // 如果已登入，允許重試連接
+                disconnectButtonEl.disabled = true;
+                ws = null; // 清理 ws 對象
+            };
+
+            ws.onclose = function(event) {
+                wsStatusEl.textContent = `Disconnected (Code: ${event.code}, Reason: ${event.reason || 'N/A'})`;
+                console.log("WebSocket connection closed:", event);
+                 // 關閉時，重置按鈕狀態
+                sendButtonEl.disabled = true;
+                connectButtonEl.disabled = !token; // 如果已登入，允許重試連接
+                disconnectButtonEl.disabled = true;
+                ws = null; // 非常重要：關閉後將 ws 設為 null
+            };
+        }
+
+        // 斷開 WebSocket 連接
+        function disconnectWs() {
+             if (ws) {
+                ws.close(1000, "Client initiated disconnect"); // 使用標準代碼 1000
+             }
+        }
+
+        // 發送消息
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) { // 必須是連接狀態才能發送
+                 alert("WebSocket is not connected.");
+                 console.log("WebSocket is not connected.");
+                 return;
+            }
+            const message = messageTextEl.value;
+            if (!message) return; // 不發送空消息
+
+            ws.send(message); // 發送消息
+            console.log("Sent:", message);
+
+            // (可選) 在本地消息列表也顯示自己發送的消息
+            const li = document.createElement('li');
+            li.textContent = `Sent: ${message}`;
+            li.style.textAlign = 'right'; // 將自己發送的消息右對齊
+            li.style.backgroundColor = '#e1f5fe';
+            messagesEl.appendChild(li);
+            messagesEl.scrollTop = messagesEl.scrollHeight; // 自動滾動到底部
+
+            messageTextEl.value = ''; // 清空輸入框
+        }
+
+        // 按 Enter 鍵發送消息
+        messageTextEl.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+    </script>
+</body>
+</html>
